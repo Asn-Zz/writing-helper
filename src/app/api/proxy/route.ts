@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 设置最大执行时间为 600 秒（10分钟 这里要考虑是否改成 SSE）
-export const maxDuration = 600; // 增加到10分钟
+export const maxDuration = 60; // 增加到10分钟
 
 // 添加 CORS 配置
 export async function OPTIONS() {
