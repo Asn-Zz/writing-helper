@@ -87,17 +87,23 @@ export async function generateContent(request: WritingRequest): Promise<ApiRespo
     // 使用本地 API 代理来避免 CORS 问题
     try {
       // 尝试使用本地代理
-      const proxyResponse = await fetch('/api/proxy', {
+      // const proxyResponse = await fetch(apiUrl '/api/proxy', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     targetUrl: apiUrl,  // 使用可能修正后的 URL
+      //     headers,
+      //     body: requestBody,
+      //     isOllama
+      //   })
+      // });
+      // 非本地代理
+      const proxyResponse = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          targetUrl: apiUrl,  // 使用可能修正后的 URL
-          headers,
-          body: requestBody,
-          isOllama
-        })
+        headers,
+        body: JSON.stringify(requestBody)
       });
       
       if (!proxyResponse.ok) {

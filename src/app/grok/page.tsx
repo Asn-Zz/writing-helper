@@ -479,7 +479,7 @@ export default function GrokTest() {
           </div>
         </div>
         
-        <div className="text-center mt-6 text-gray-600 text-sm">
+        {/* <div className="text-center mt-6 text-gray-600 text-sm">
           <p>
             <Link href="/" className="text-blue-600 hover:underline">返回写作助手</Link> • 
             Grok API 测试工具 • 
@@ -506,7 +506,7 @@ export default function GrokTest() {
           </div>
           
           <p className="mt-2 text-xs text-gray-500">© {new Date().getFullYear()} 写作助手 - 由 Cursor 强力驱动</p>
-        </div>
+        </div> */}
       </div>
     </FeatureLayout>
   );
