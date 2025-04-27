@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export type ApiProvider = 'openai' | 'grok' | 'ollama' | 'deepseek' | 'custom';
 
@@ -52,6 +52,80 @@ export default function ApiSettings({
   availableModels = [],
   fetchModels
 }: ApiSettingsProps) {
+  // 添加保存状态指示器
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  
+  // 存储配置到 localStorage
+  const saveApiConfig = () => {
+    try {
+      setSaveStatus('saving');
+      const apiConfig = {
+        provider: apiProvider,
+        url: apiUrl,
+        key: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
+        model: model
+      };
+      localStorage.setItem('writing_helper_api_config', JSON.stringify(apiConfig));
+      console.log('API配置已保存到本地存储');
+      setSaveStatus('saved');
+      
+      // 3秒后重置保存状态
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } catch (error) {
+      console.error('保存API配置失败:', error);
+      setSaveStatus('idle');
+    }
+  };
+
+  // 从 localStorage 加载配置
+  const loadApiConfig = () => {
+    try {
+      const savedConfig = localStorage.getItem('writing_helper_api_config');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        // 只有当配置存在时才设置
+        if (config.provider) setApiProvider(config.provider as ApiProvider);
+        if (config.url) setApiUrl(config.url);
+        if (config.key) setApiKey(config.key);
+        if (config.model) setModel(config.model);
+        console.log('已从本地存储加载API配置');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('加载API配置失败:', error);
+      return false;
+    }
+  };
+
+  // 清除所有API配置
+  const clearApiConfig = () => {
+    try {
+      localStorage.removeItem('writing_helper_api_config');
+      // 重置为默认值
+      setApiProvider('openai');
+      setApiUrl(API_URLS.openai);
+      setApiKey('');
+      setModel('gpt-4');
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+      console.log('API配置已重置');
+    } catch (error) {
+      console.error('清除API配置失败:', error);
+    }
+  };
+
+  // 组件挂载时加载配置
+  useEffect(() => {
+    loadApiConfig();
+  }, []);
+
+  // 当配置变更时保存
+  useEffect(() => {
+    saveApiConfig();
+  }, [apiProvider, apiUrl, apiKey, model]);
   
   const handleApiProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provider = e.target.value as ApiProvider;
@@ -95,6 +169,20 @@ export default function ApiSettings({
             <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1H4v8a1 1 0 001 1h10a1 1 0 001-1V6zM4 4a1 1 0 011-1h10a1 1 0 011 1v1H4V4z" clipRule="evenodd" />
           </svg>
           API 设置
+          {saveStatus !== 'idle' && (
+            <span className="ml-2 text-xs inline-flex items-center">
+              {saveStatus === 'saving' ? (
+                <span className="text-blue-500 animate-pulse">保存中...</span>
+              ) : (
+                <span className="text-green-500 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  已保存
+                </span>
+              )}
+            </span>
+          )}
         </h3>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
@@ -107,7 +195,8 @@ export default function ApiSettings({
       </div>
 
       {showSettings && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="apiProvider" className="block text-sm font-medium text-gray-700 mb-1">
               选择 API 提供商
@@ -249,8 +338,22 @@ export default function ApiSettings({
               </div>
             )}
           </div>
+          </div>
+          
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={clearApiConfig}
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              重置为默认设置
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
-} 
+}

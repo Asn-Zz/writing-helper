@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI 写作助手",
+  title: "AI 编辑工作室",
   description: "由先进的大语言模型驱动的智能写作助手",
 };
 

@@ -28,7 +28,7 @@ export default function Navigation() {
         <div className="flex h-16 justify-between">
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
-              <span className="text-xl font-bold text-gray-900">AI 写作助手</span>
+              <span className="text-xl font-bold text-gray-900">AI 编辑工作室</span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {featureLinks.map((link) => {

@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="bg-gray-50 py-8 border-t border-gray-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center">
-          <div className="text-gray-600 mb-4">
+          {/* <div className="text-gray-600 mb-4">
             AI 写作助手 • <Link href="/api-test" className="text-blue-500 hover:text-blue-600">API 测试页面</Link> • 使用先进的大型语言模型
           </div>
           
@@ -27,10 +27,10 @@ export default function Footer() {
                 <path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" />
               </svg>
             </a>
-          </div>
+          </div> */}
           
           <div className="text-sm text-gray-500">
-            © 2025 写作助手 - 由 Cursor 强力驱动
+            © 2025 AI 编辑工作室 - 由先进的大语言模型驱动的智能创作助手
           </div>
         </div>
       </div>
