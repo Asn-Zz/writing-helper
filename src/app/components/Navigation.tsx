@@ -16,6 +16,9 @@ export const featureLinks: NavLink[] = [
 
   // { href: '/features/text-summarizer', label: '文本摘要' },
   { href: '/features/ai-rewrite', label: 'AI文本优化' },
+
+  { href: '/polish', label: '文本润色' },
+  
   // 在此处添加新的功能页面链接
   { href: '/features/text-summarizer', label: '文本摘要' },
   

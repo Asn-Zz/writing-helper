@@ -1,72 +1,31 @@
 "use client";
 
-import { WritingRequest, ApiResponse, PromptStyle, PolishRequest, PolishResponse } from './types';
+import { GenerateRequest, WritingRequest, ApiResponse, PromptStyle, PolishRequest, PolishResponse } from './types';
 
-export async function generateContent(request: WritingRequest): Promise<ApiResponse> {
+export async function generate(request: GenerateRequest): Promise<ApiResponse> {
   try {
-    const { promptStyle, topic, keywords, wordCount, llmApiUrl, llmApiKey, model } = request;
-    
-    // Format the prompt template
-    const promptTemplate = formatPromptTemplate(promptStyle, topic, keywords, wordCount);
+    const { apiUrl, apiKey, prompt, model, messages, temperature = 0.7, stream = false } = request;
     
     // Detect API provider type from URL (simple detection)
-    const isGrokApi = llmApiUrl.includes('grok') || llmApiUrl.includes('xai');
-    const isOllamaApi = llmApiUrl.includes('ollama') || llmApiUrl.includes('11434');
-    const isDeepSeekApi = llmApiUrl.includes('deepseek');
-    
-    // URL 由前端组件和代理处理，这里直接使用
-    const apiUrl = llmApiUrl;
+    const isOllamaApi = model.includes('ollama') || model.includes('11434');
     
     // Prepare request body based on API provider
     let requestBody: Record<string, unknown>;
-    let isOllama = false;
     
     if (isOllamaApi) {
       // Ollama API format
       requestBody = {
         model: model || 'llama2',
-        prompt: promptTemplate,
-        stream: false
+        prompt,
+        stream
       };
-      isOllama = true;
       console.log('使用 Ollama API 格式, 生成内容请求:', JSON.stringify(requestBody));
-    } else if (isGrokApi) {
-      // Grok API format
-      requestBody = {
-        messages: [
-          {
-            role: 'user',
-            content: promptTemplate
-          }
-        ],
-        model: "grok-2-latest",
-        temperature: 0.7,
-        stream: false
-      };
-    } else if (isDeepSeekApi) {
-      // DeepSeek API format (与 OpenAI 兼容但有自己的模型名称)
-      requestBody = {
-        model: model || 'deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: promptTemplate
-          }
-        ],
-        temperature: 0.7,
-        stream: false
-      };
     } else {
       // OpenAI-compatible API format (default)
       requestBody = {
         model: model || 'gpt-4',
-        messages: [
-          {
-            role: 'user',
-            content: promptTemplate
-          }
-        ],
-        temperature: 0.7
+        messages,
+        temperature
       };
     }
     
@@ -77,29 +36,15 @@ export async function generateContent(request: WritingRequest): Promise<ApiRespo
     
     // Add appropriate authorization header if not Ollama
     if (!isOllamaApi) {
-      headers['Authorization'] = `Bearer ${llmApiKey}`;
+      headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
     console.log('准备发送请求到:', apiUrl);
-    console.log('请求头:', JSON.stringify(headers, null, 2).replace(llmApiKey, '[REDACTED]'));
+    console.log('请求头:', JSON.stringify(headers, null, 2).replace(apiKey, '[REDACTED]'));
     console.log('请求体:', JSON.stringify(requestBody, null, 2));
     
     // 使用本地 API 代理来避免 CORS 问题
     try {
-      // 尝试使用本地代理
-      // const proxyResponse = await fetch(apiUrl '/api/proxy', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     targetUrl: apiUrl,  // 使用可能修正后的 URL
-      //     headers,
-      //     body: requestBody,
-      //     isOllama
-      //   })
-      // });
-      // 非本地代理
       const proxyResponse = await fetch(apiUrl, {
         method: 'POST',
         headers,
@@ -123,31 +68,8 @@ export async function generateContent(request: WritingRequest): Promise<ApiRespo
       if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
         // 标准格式
         content = data.choices[0].message.content;
+        content = content.replace(/^```json\s*|```$/g, '').trim();
         console.log('从 choices[0].message.content 提取内容');
-      } else if (data.message && data.message.content) {
-        // 替代格式1
-        content = data.message.content;
-        console.log('从 message.content 提取内容');
-      } else if (data.content) {
-        // 替代格式2
-        content = data.content;
-        console.log('从 content 提取内容');
-      } else if (data.output) {
-        // 替代格式3
-        content = data.output;
-        console.log('从 output 提取内容');
-      } else if (data.response) {
-        // 替代格式4
-        content = data.response;
-        console.log('从 response 提取内容');
-      } else if (data.text) {
-        // 替代格式5
-        content = data.text;
-        console.log('从 text 提取内容');
-      } else if (typeof data === 'string') {
-        // 可能整个响应就是文本
-        content = data;
-        console.log('使用整个响应作为内容');
       } else if (data.error) {
         // 有明确的错误信息
         throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
@@ -161,6 +83,38 @@ export async function generateContent(request: WritingRequest): Promise<ApiRespo
       console.error('代理请求失败:', proxyError);
       throw proxyError;
     }
+  } catch (error) {
+    console.error('生成内容错误:', error);
+    return {
+      content: '',
+      error: error instanceof Error ? error.message : '未知错误'
+    }
+  }
+}
+
+export async function generateContent(request: WritingRequest): Promise<ApiResponse> {
+  try {
+    const { promptStyle, topic, keywords, wordCount, llmApiUrl, llmApiKey, model } = request;
+    
+    // Format the prompt template
+    const promptTemplate = formatPromptTemplate(promptStyle, topic, keywords, wordCount);
+
+    const data = await generate({
+      apiUrl: llmApiUrl,
+      apiKey: llmApiKey,
+      model: model || 'gpt-4',
+      prompt: promptTemplate,
+      messages: [
+        {
+          role: 'user',
+          content: promptTemplate
+        }
+      ],
+      temperature: 0.7,
+      stream: false
+    })
+    
+    return data;
   } catch (error) {
     console.error('生成内容错误:', error);
     return {
@@ -271,119 +225,21 @@ ${originalText}
 
 请提供润色后的文本。只返回润色后的完整文本，不要添加任何说明或解释。`;
 
-    // 确定API提供商类型
-    const isGrokApi = llmApiUrl.includes('grok') || llmApiUrl.includes('xai');
-    const isOllamaApi = llmApiUrl.includes('ollama') || llmApiUrl.includes('11434');
-    const isDeepSeekApi = llmApiUrl.includes('deepseek');
-    
-    // URL 由前端组件和代理处理，这里直接使用
-    const apiUrl = llmApiUrl;
-    
-    // 根据API提供商准备不同的请求格式
-    let requestBody: Record<string, unknown>;
-    let isOllama = false;
-    
-    if (isOllamaApi) {
-      // Ollama API format
-      requestBody = {
-        model: model || 'llama2',
+      const data = await generate({
+        apiUrl: llmApiUrl,
+        apiKey: llmApiKey,
+        model: model || 'gpt-4',
         prompt: promptTemplate,
-        stream: false
-      };
-      isOllama = true;
-      console.log('使用 Ollama API 格式, 润色请求:', JSON.stringify(requestBody));
-    } else if (isGrokApi) {
-      // Grok API format
-      requestBody = {
         messages: [
           {
             role: 'user',
             content: promptTemplate
           }
         ],
-        model: "grok-2-latest",
         temperature: 0.7,
         stream: false
-      };
-    } else if (isDeepSeekApi) {
-      // DeepSeek API format (与 OpenAI 兼容但有自己的模型名称)
-      requestBody = {
-        model: model || 'deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: promptTemplate
-          }
-        ],
-        temperature: 0.3,
-        stream: false
-      };
-    } else {
-      // OpenAI-compatible API format (default)
-      requestBody = {
-        model: model || 'gpt-4',
-        messages: [
-          {
-            role: 'user',
-            content: promptTemplate
-          }
-        ],
-        temperature: 0.3,
-        stream: false
-      };
-    }
-    
-    // 创建代理请求以避免CORS问题
-    const proxyUrl = '/api/proxy';
-    
-    // 设置请求头
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    // 如果有API密钥且不是 Ollama，添加授权头
-    if (llmApiKey && !isOllamaApi) {
-      headers['Authorization'] = `Bearer ${llmApiKey}`;
-    }
-    
-    console.log('润色请求目标:', apiUrl);
-    console.log('请求头:', JSON.stringify(headers, null, 2).replace(llmApiKey || '', '[REDACTED]'));
-    
-    // 发送请求到代理
-    try {
-      const proxyResponse = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          targetUrl: apiUrl,
-          headers,
-          body: requestBody,
-          isOllama
-        }),
-      });
-      
-      if (!proxyResponse.ok) {
-        const errorData = await proxyResponse.json();
-        throw new Error(errorData.error?.message || `代理服务错误: ${proxyResponse.status}`);
-      }
-      
-      const data = await proxyResponse.json();
-      console.log('API 响应:', data);
-      
-      // 提取内容
-      let polishedText = '';
-      
-      if (data.choices && data.choices.length > 0) {
-        polishedText = data.choices[0].message.content;
-      } else if (data.content) {
-        polishedText = data.content;
-      } else if (data.response) {
-        polishedText = data.response;
-      } else {
-        throw new Error('无法从API响应中提取内容');
-      }
+      })
+      const polishedText = data.content || data.error || '';
       
       // 生成差异标记
       const diffMarkup = generateDiffMarkup(originalText, polishedText);
@@ -393,10 +249,6 @@ ${originalText}
         polishedText,
         diffMarkup
       };
-    } catch (proxyError) {
-      console.error('代理请求失败:', proxyError);
-      throw proxyError;
-    }
   } catch (error) {
     console.error('润色请求失败:', error);
     return {
@@ -406,4 +258,4 @@ ${originalText}
       error: error instanceof Error ? error.message : '未知错误'
     };
   }
-} 
+}

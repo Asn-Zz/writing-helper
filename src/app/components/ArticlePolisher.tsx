@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { polishContent } from '../lib/api';
 import { PolishRequest, PolishResponse } from '../lib/types';
-import ApiSettings, { ApiProvider } from './ApiSettings';
+import ApiSettings from './ApiSettings';
+import { DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
 export default function ArticlePolisher() {
   const [apiKey, setApiKey] = useState('');
-  const [apiEndpoint, setApiEndpoint] = useState('https://api.openai.com/v1/chat/completions');
-  const [apiProvider, setApiProvider] = useState<ApiProvider>('openai');
+  const [apiEndpoint, setApiEndpoint] = useState(DEFAULT_LLM.apiUrl);
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
+  const [model, setModel] = useState<string>(DEFAULT_LLM.model); // 添加模型设置
   const [isOllama, setIsOllama] = useState(false);
-  const [ollamaEndpoint, setOllamaEndpoint] = useState('http://localhost:11434/api/generate');
-  const [ollamaModel, setOllamaModel] = useState('llama2');
+  const [ollamaEndpoint, setOllamaEndpoint] = useState(DEFAULT_OLLAMA_LLM.apiUrl);
+  const [ollamaModel, setOllamaModel] = useState(DEFAULT_OLLAMA_LLM.model);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [polishType, setPolishType] = useState<'standard' | 'academic' | 'business' | 'creative'>('standard');
   const [showApiSettings, setShowApiSettings] = useState(true);
@@ -110,7 +112,7 @@ export default function ArticlePolisher() {
       // 检查 API 密钥要求
       if (apiProvider !== 'ollama' && !apiKey) {
         // 非 Ollama 提供商需要 API 密钥
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : apiProvider === 'grok' ? 'Grok' : apiProvider === 'deepseek' ? 'DeepSeek' : '自定义'} API 需要提供有效的 API 密钥`);
+        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
       }
 
       if (!originalText.trim()) {
@@ -128,16 +130,13 @@ export default function ArticlePolisher() {
       }
 
       // 根据API提供商选择不同的模型
-      const model = apiProvider === 'ollama' ? ollamaModel : 
-                    apiProvider === 'openai' ? 'gpt-4' : 
-                    apiProvider === 'grok' ? 'grok-2-latest' : 
-                    apiProvider === 'deepseek' ? 'deepseek-chat' : '';
+      const llmModel = apiProvider === 'ollama' ? ollamaModel : apiProvider === 'openai' ? model : 'gpt-4'
 
       const request: PolishRequest = {
         originalText,
         llmApiUrl: apiUrl,
         llmApiKey: apiKey, // Ollama 不需要 API 密钥，但保留该字段以保持接口一致性
-        model: model,
+        model: llmModel,
         polishType
       };
 
@@ -181,16 +180,12 @@ export default function ArticlePolisher() {
                   // 当更改提供商时，相应更新URL（使用预定义的默认值）
                   if (provider === 'openai') {
                     setApiEndpoint('https://api.openai.com/v1/chat/completions');
-                  } else if (provider === 'grok') {
-                    setApiEndpoint('https://api.grok.ai/v1/chat/completions');
                   } else if (provider === 'ollama') {
                     setOllamaEndpoint('http://localhost:11434/api/generate');  // 确保使用 /api/generate 端点
-                  } else if (provider === 'deepseek') {
-                    setApiEndpoint('https://api.deepseek.com/v1/chat/completions');
                   }
                   // 自定义提供商不更改URL
                 }}
-                apiUrl={apiProvider === 'ollama' ? ollamaEndpoint : apiEndpoint}
+                apiUrl={apiEndpoint}
                 setApiUrl={(url) => {
                   if (apiProvider === 'ollama') {
                     setOllamaEndpoint(url);
@@ -200,11 +195,13 @@ export default function ArticlePolisher() {
                 }}
                 apiKey={apiKey}
                 setApiKey={setApiKey}
-                model={apiProvider === 'ollama' ? ollamaModel : apiProvider === 'openai' ? 'gpt-4' : apiProvider === 'grok' ? 'grok-2-latest' : apiProvider === 'deepseek' ? 'deepseek-chat' : ''}
+                model={model}
                 setModel={(model) => {
                   if (apiProvider === 'ollama') {
                     setOllamaModel(model);
-                  } 
+                  } else {
+                    setModel(model);
+                  }
                   // 其他模型名称暂不需要保存
                 }}
                 availableModels={availableModels}

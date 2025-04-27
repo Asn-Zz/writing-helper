@@ -5,7 +5,8 @@ import { PromptStyle, WritingRequest } from '../lib/types';
 import { generateContent, exportToMarkdown } from '../lib/api';
 import PromptForm from './PromptForm';
 import MarkdownEditor from './MarkdownEditor';
-import ApiSettings, { ApiProvider } from './ApiSettings';
+import ApiSettings from './ApiSettings';
+import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
 // Default prompt style template
 const defaultPromptStyle: PromptStyle = {
@@ -54,26 +55,6 @@ const defaultPromptStyle: PromptStyle = {
   }
 };
 
-// API 提供商选项
-// type ApiProvider = 'openai' | 'grok' | 'ollama' | 'custom';
-
-// 默认 API URLs
-const API_URLS: Record<ApiProvider, string> = {
-  openai: 'https://api.openai.com/v1/chat/completions',
-  grok: 'https://api.grok.ai/v1/chat/completions',
-  ollama: 'http://localhost:11434/api/generate',
-  deepseek: 'https://api.deepseek.com/v1/chat/completions',
-  custom: ''
-};
-
-// API 提供商帮助信息
-const API_HELP = {
-  openai: '使用 OpenAI API，例如 GPT-4',
-  grok: '使用 Grok API (X.AI)',
-  ollama: '使用本地运行的 Ollama 服务',
-  custom: '配置自定义 API 端点'
-};
-
 export default function WritingAssistant() {
   const [promptStyle, setPromptStyle] = useState<PromptStyle>(defaultPromptStyle);
   const [topic, setTopic] = useState<string>('儿时赶海');
@@ -82,10 +63,10 @@ export default function WritingAssistant() {
   const [wordCount, setWordCount] = useState<number>(800);
   
   // API 设置
-  const [apiProvider, setApiProvider] = useState<ApiProvider>('openai');
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
   const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
   const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>('gpt-4'); // 添加模型设置
+  const [model, setModel] = useState<string>(DEFAULT_LLM.model); // 添加模型设置
   
   const [output, setOutput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -191,22 +172,17 @@ export default function WritingAssistant() {
     setApiProvider(provider);
     
     // 如果是预设的提供商，自动填充 URL
-    if (provider !== 'custom') {
+    if (provider !== PROVIDER_KEY.custom) {
       setLlmApiUrl(API_URLS[provider]);
     }
     
     // 根据提供商设置默认模型
-    if (provider === 'grok') {
-      setModel('grok-2-latest');
-    } else if (provider === 'ollama') {
-      setModel('llama2');
+    if (provider === PROVIDER_KEY.ollama) {
+      setModel(DEFAULT_OLLAMA_LLM.model);
       // 清空 API Key，因为 Ollama 不需要
       setLlmApiKey('');
-    } else if (provider === 'openai') {
-      setModel('gpt-4');
-    } else if (provider === 'deepseek') {
-      setLlmApiUrl('https://api.deepseek.com/v1/chat/completions');
-      setModel('deepseek-chat');
+    } else if (provider === PROVIDER_KEY.openai) {
+      setModel(DEFAULT_LLM.model);
     }
     
     // 重置错误
@@ -228,7 +204,7 @@ export default function WritingAssistant() {
     try {
       // 检查 API 密钥
       if (apiProvider !== 'ollama' && !llmApiKey) {
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : apiProvider === 'grok' ? 'Grok' : apiProvider === 'deepseek' ? 'DeepSeek' : '自定义'} API 需要提供有效的 API 密钥`);
+        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
       }
       
       // 确保使用正确的 URL 端点
@@ -361,17 +337,11 @@ export default function WritingAssistant() {
                         if (provider === 'openai') {
                           setLlmApiUrl('https://api.openai.com/v1/chat/completions');
                           setModel('gpt-4');
-                        } else if (provider === 'grok') {
-                          setLlmApiUrl('https://api.grok.ai/v1/chat/completions');
-                          setModel('grok-2-latest');
                         } else if (provider === 'ollama') {
                           setLlmApiUrl('http://localhost:11434/api/generate');  // 确保使用 /api/generate 端点
                           setModel('llama2');
                           // 清空 API Key，因为 Ollama 不需要
                           setLlmApiKey('');
-                        } else if (provider === 'deepseek') {
-                          setLlmApiUrl('https://api.deepseek.com/v1/chat/completions');
-                          setModel('deepseek-chat');
                         }
                         // 重置错误
                         setError(null);
@@ -567,4 +537,4 @@ export default function WritingAssistant() {
       </div>
     </div>
   );
-} 
+}

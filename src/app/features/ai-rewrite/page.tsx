@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import FeatureLayout from '../../components/FeatureLayout';
-import ApiSettings, { ApiProvider } from '../../components/ApiSettings';
-import { ApiResponse } from '../../../app/lib/types';
+import ApiSettings from '../../components/ApiSettings';
+import { ApiResponse } from '@/app/lib/types';
+import { generate } from '@/app/lib/api';
+import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
 // 预设的洗稿 prompt
 const presetPrompts = [
@@ -104,15 +106,6 @@ const presetPrompts = [
   }
 ];
 
-// 默认 API URLs
-const API_URLS: Record<ApiProvider, string> = {
-  openai: 'https://api.openai.com/v1/chat/completions',
-  grok: 'https://api.x.ai/v1/chat/completions',
-  ollama: 'http://localhost:11434/api/generate',
-  deepseek: 'https://api.deepseek.com/v1/chat/completions',
-  custom: ''
-};
-
 export default function AIRewritePage() {
   const [content, setContent] = useState('');
   const [result, setResult] = useState('');
@@ -126,10 +119,10 @@ export default function AIRewritePage() {
   const [processingStep, setProcessingStep] = useState<string | null>(null);
 
   // API 设置状态
-  const [apiProvider, setApiProvider] = useState<ApiProvider>('openai');
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
   const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
   const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>('gpt-4');
+  const [model, setModel] = useState<string>(DEFAULT_LLM.model);
   const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
 
@@ -207,115 +200,26 @@ export default function AIRewritePage() {
   // 直接从API获取内容
   const getContentFromApi = async (prompt: string, text: string): Promise<ApiResponse> => {
     try {
-      // 检测API提供商类型
-      const isGrokApi = llmApiUrl.includes('grok') || llmApiUrl.includes('xai');
-      const isOllamaApi = llmApiUrl.includes('ollama') || llmApiUrl.includes('11434');
-      const isDeepSeekApi = llmApiUrl.includes('deepseek');
-
-      // 准备请求体
-      let requestBody: Record<string, unknown>;
-      let isOllama = false;
-
       const fullPrompt = prompt.includes('{text}') 
         ? prompt.replace('{text}', text)
         : `${prompt}\n\n原文：\n${text}`;
+        
+      const data = await generate({
+        apiUrl: llmApiUrl,
+        apiKey: llmApiKey,
+        model: model || 'gpt-4',
+        prompt: fullPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: fullPrompt
+          }
+        ],
+        temperature: 0.7,
+        stream: false
+      })
 
-      if (isOllamaApi) {
-        // Ollama API格式
-        requestBody = {
-          model: model || 'llama2',
-          prompt: fullPrompt,
-          stream: false
-        };
-        isOllama = true;
-      } else if (isGrokApi) {
-        // Grok API格式
-        requestBody = {
-          messages: [
-            { role: 'user', content: fullPrompt }
-          ],
-          model: model || "grok-2-latest",
-          temperature: 0.7,
-          stream: false
-        };
-      } else if (isDeepSeekApi) {
-        // DeepSeek API格式
-        requestBody = {
-          model: model || 'deepseek-chat',
-          messages: [
-            { role: 'user', content: fullPrompt }
-          ],
-          temperature: 0.7,
-          stream: false
-        };
-      } else {
-        // OpenAI兼容格式（默认）
-        requestBody = {
-          model: model || 'gpt-4',
-          messages: [
-            { role: 'user', content: fullPrompt }
-          ],
-          temperature: 0.7
-        };
-      }
-
-      // 准备请求头
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // 如果不是Ollama，添加授权头
-      if (!isOllamaApi && llmApiKey) {
-        headers['Authorization'] = `Bearer ${llmApiKey}`;
-      }
-
-      // 使用代理API避免CORS问题
-      const proxyResponse = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          targetUrl: llmApiUrl,
-          headers,
-          body: requestBody,
-          isOllama
-        })
-      });
-
-      if (!proxyResponse.ok) {
-        const errorData = await proxyResponse.json().catch(() => ({
-          error: { message: `代理服务错误: ${proxyResponse.status}` }
-        }));
-        throw new Error(errorData.error?.message || `代理服务错误: ${proxyResponse.status}`);
-      }
-
-      const data = await proxyResponse.json();
-
-      // 尝试不同方式提取内容
-      let content = '';
-
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        content = data.choices[0].message.content;
-      } else if (data.message && data.message.content) {
-        content = data.message.content;
-      } else if (data.content) {
-        content = data.content;
-      } else if (data.output) {
-        content = data.output;
-      } else if (data.response) {
-        content = data.response;
-      } else if (data.text) {
-        content = data.text;
-      } else if (typeof data === 'string') {
-        content = data;
-      } else if (data.error) {
-        throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
-      } else {
-        throw new Error(`无法从API响应中提取内容: ${JSON.stringify(data)}`);
-      }
-
-      return { content };
+      return data
     } catch (error) {
       console.error('API请求错误:', error);
       return {
@@ -339,7 +243,7 @@ export default function AIRewritePage() {
     try {
       // 检查 API 密钥
       if (apiProvider !== 'ollama' && !llmApiKey) {
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : apiProvider === 'grok' ? 'Grok' : apiProvider === 'deepseek' ? 'DeepSeek' : '自定义'} API 需要提供有效的 API 密钥`);
+        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
       }
 
       // 获取所选提示词文本
@@ -460,16 +364,10 @@ ${strategiesResponse.content}
                 if (provider === 'openai') {
                   setLlmApiUrl('https://api.openai.com/v1/chat/completions');
                   setModel('gpt-4');
-                } else if (provider === 'grok') {
-                  setLlmApiUrl('https://api.x.ai/v1/chat/completions');
-                  setModel('grok-2-latest');
                 } else if (provider === 'ollama') {
                   setLlmApiUrl('http://localhost:11434/api/generate');
                   setModel('llama2');
                   setLlmApiKey('');
-                } else if (provider === 'deepseek') {
-                  setLlmApiUrl('https://api.deepseek.com/v1/chat/completions');
-                  setModel('deepseek-chat');
                 }
                 setError(null);
                 setApiResponseDetails(null);

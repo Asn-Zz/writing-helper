@@ -1,26 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-
-export type ApiProvider = 'openai' | 'grok' | 'ollama' | 'deepseek' | 'custom';
-
-// API 提供商帮助信息
-const API_HELP: Record<ApiProvider, string> = {
-  openai: '使用 OpenAI API，例如 GPT-4',
-  grok: '使用 Grok API (X.AI)',
-  ollama: '使用本地运行的 Ollama 服务',
-  deepseek: '使用 DeepSeek API，例如 DeepSeek-V2',
-  custom: '配置自定义 API 端点'
-};
-
-// 默认 API URLs
-const API_URLS: Record<ApiProvider, string> = {
-  openai: 'https://api.openai.com/v1/chat/completions',
-  grok: 'https://api.x.ai/v1/chat/completions',
-  ollama: 'http://localhost:11434/api/generate',  // 确保使用 /api/generate 端点
-  deepseek: 'https://api.deepseek.com/v1/chat/completions',
-  custom: ''
-};
+import { API_HELP, API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
 export interface ApiSettingsProps {
   showSettings: boolean;
@@ -54,6 +35,7 @@ export default function ApiSettings({
 }: ApiSettingsProps) {
   // 添加保存状态指示器
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const storeKey = 'writing_helper_api_config';
   
   // 存储配置到 localStorage
   const saveApiConfig = () => {
@@ -65,7 +47,7 @@ export default function ApiSettings({
         key: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
         model: model
       };
-      localStorage.setItem('writing_helper_api_config', JSON.stringify(apiConfig));
+      localStorage.setItem(storeKey, JSON.stringify(apiConfig));
       console.log('API配置已保存到本地存储');
       setSaveStatus('saved');
       
@@ -82,7 +64,7 @@ export default function ApiSettings({
   // 从 localStorage 加载配置
   const loadApiConfig = () => {
     try {
-      const savedConfig = localStorage.getItem('writing_helper_api_config');
+      const savedConfig = localStorage.getItem(storeKey);
       if (savedConfig) {
         const config = JSON.parse(savedConfig);
         // 只有当配置存在时才设置
@@ -103,12 +85,12 @@ export default function ApiSettings({
   // 清除所有API配置
   const clearApiConfig = () => {
     try {
-      localStorage.removeItem('writing_helper_api_config');
+      localStorage.removeItem(storeKey);
       // 重置为默认值
-      setApiProvider('openai');
+      setApiProvider(PROVIDER_KEY.openai);
       setApiUrl(API_URLS.openai);
-      setApiKey('');
-      setModel('gpt-4');
+      setApiKey(DEFAULT_LLM.apiKey);
+      setModel(DEFAULT_LLM.model);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
       console.log('API配置已重置');
@@ -135,13 +117,11 @@ export default function ApiSettings({
     setApiUrl(newUrl);
     
     // 设置默认模型名称
-    if (provider === 'openai') {
-      setModel('gpt-4');
-    } else if (provider === 'grok') {
-      setModel('grok-2-latest');
-    } else if (provider === 'ollama') {
+    if (provider === PROVIDER_KEY.openai) {
+      setModel(DEFAULT_LLM.model);
+    } else if (provider === PROVIDER_KEY.ollama) {
       // 对于 Ollama，尝试获取可用模型
-      setModel('llama2'); // 设置默认值，即使没有获取到模型列表也能有默认值
+      setModel(DEFAULT_OLLAMA_LLM.model); // 设置默认值，即使没有获取到模型列表也能有默认值
       if (fetchModels) {
         // 异步获取模型列表
         fetchModels().catch(err => {
@@ -150,8 +130,6 @@ export default function ApiSettings({
           // 用户可以手动点击"刷新模型列表"按钮重试
         });
       }
-    } else if (provider === 'deepseek') {
-      setModel('deepseek-chat');
     }
     // 自定义提供商不设置默认模型
   };
@@ -203,9 +181,7 @@ export default function ApiSettings({
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="openai">OpenAI</option>
-              <option value="grok">Grok (xAI)</option>
               <option value="ollama">Ollama (本地)</option>
-              <option value="deepseek">DeepSeek</option>
               <option value="custom">自定义</option>
             </select>
             <p className="mt-1 text-xs text-gray-500">

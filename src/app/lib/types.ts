@@ -72,4 +72,14 @@ export interface PolishResponse {
 export interface ApiResponse {
   content: string;
   error?: string;
-} 
+}
+
+export interface GenerateRequest {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  prompt?: string;
+  temperature?: number;
+  messages?: unknown[];
+  stream?: boolean;
+}
