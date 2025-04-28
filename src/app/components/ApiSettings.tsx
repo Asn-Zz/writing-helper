@@ -3,15 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { API_HELP, API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
+export interface ApiConfigProps {
+  apiProvider: ApiProvider;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 export interface ApiSettingsProps {
+  setApiConfig?: (config: ApiConfigProps) => void;
   showSettings: boolean;
   toggleSettings: () => void;
   apiProvider: ApiProvider;
-  setApiProvider: (provider: ApiProvider) => void;
+  setApiProvider: (apiProvider: ApiProvider) => void;
   apiUrl: string;
-  setApiUrl: (url: string) => void;
+  setApiUrl: (apiUrl: string) => void;
   apiKey: string;  // 注意：对于 Ollama，此值可以为空字符串
-  setApiKey: (key: string) => void;
+  setApiKey: (apiKey: string) => void;
   model: string;
   setModel: (model: string) => void;
   // 仅在使用 Ollama 时需要
@@ -20,6 +28,7 @@ export interface ApiSettingsProps {
 }
 
 export default function ApiSettings({
+  setApiConfig,
   showSettings,
   toggleSettings,
   apiProvider,
@@ -42,19 +51,21 @@ export default function ApiSettings({
     try {
       setSaveStatus('saving');
       const apiConfig = {
-        provider: apiProvider,
-        url: apiUrl,
-        key: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
+        apiProvider: apiProvider,
+        apiUrl: apiUrl,
+        apiKey: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
         model: model
       };
       localStorage.setItem(storeKey, JSON.stringify(apiConfig));
       console.log('API配置已保存到本地存储');
       setSaveStatus('saved');
+      if (setApiConfig)
+        setApiConfig(apiConfig)
       
       // 3秒后重置保存状态
       setTimeout(() => {
         setSaveStatus('idle');
-      }, 3000);
+      }, 1500);
     } catch (error) {
       console.error('保存API配置失败:', error);
       setSaveStatus('idle');
@@ -68,16 +79,31 @@ export default function ApiSettings({
       if (savedConfig) {
         const config = JSON.parse(savedConfig);
         // 只有当配置存在时才设置
-        if (config.provider) setApiProvider(config.provider as ApiProvider);
-        if (config.url) setApiUrl(config.url);
-        if (config.key) setApiKey(config.key);
+        if (config.apiProvider) setApiProvider(config.apiProvider as ApiProvider);
+        if (config.apiUrl) setApiUrl(config.apiUrl);
+        if (config.apiKey) setApiKey(config.apiKey);
         if (config.model) setModel(config.model);
         console.log('已从本地存储加载API配置');
+
+        if (setApiConfig)
+          setApiConfig(config)
+
         return true;
       }
       return false;
     } catch (error) {
       console.error('加载API配置失败:', error);
+
+      if (setApiConfig) {
+        const config = {
+          apiProvider: apiProvider,
+          apiUrl: apiUrl,
+          apiKey: apiKey,
+          model: model
+        };
+        setApiConfig(config)
+      }
+        
       return false;
     }
   };
@@ -105,21 +131,21 @@ export default function ApiSettings({
   }, []);
   
   const handleApiProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const provider = e.target.value as ApiProvider;
+    const apiProvider = e.target.value as ApiProvider;
     
     // 更新状态前先准备好新的 URL 和模型
-    const newUrl = API_URLS[provider];
+    const newUrl = API_URLS[apiProvider];
     
     // 先更新提供商
-    setApiProvider(provider);
+    setApiProvider(apiProvider);
     
     // 设置默认 URL
     setApiUrl(newUrl);
     
     // 设置默认模型名称
-    if (provider === PROVIDER_KEY.openai) {
+    if (apiProvider === PROVIDER_KEY.openai) {
       setModel(DEFAULT_LLM.model);
-    } else if (provider === PROVIDER_KEY.ollama) {
+    } else if (apiProvider === PROVIDER_KEY.ollama) {
       // 对于 Ollama，尝试获取可用模型
       setModel(DEFAULT_OLLAMA_LLM.model); // 设置默认值，即使没有获取到模型列表也能有默认值
       if (fetchModels) {
@@ -130,6 +156,10 @@ export default function ApiSettings({
           // 用户可以手动点击"刷新模型列表"按钮重试
         });
       }
+    } else if (apiProvider === PROVIDER_KEY.custom) {
+      setModel('');
+      setApiKey('');
+      setApiUrl('');
     }
     // 自定义提供商不设置默认模型
   };

@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import FeatureLayout from '../../components/FeatureLayout';
-import ApiSettings from '../../components/ApiSettings';
 import { ApiResponse } from '@/app/lib/types';
 import { generate } from '@/app/lib/api';
-import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
+import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
 
 // 预设的洗稿 prompt
 const presetPrompts = [
@@ -119,82 +118,22 @@ export default function AIRewritePage() {
   const [processingStep, setProcessingStep] = useState<string | null>(null);
 
   // API 设置状态
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>(DEFAULT_LLM.model);
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+    apiProvider: 'openai',
+    apiUrl: '',
+    apiKey: '',
+    model: ''
+  })
+
+  const notOpenAIKey = useMemo(() => {    
+    return apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey;
+  }, [apiConfig]);
 
   // 获取当前选中的预设prompt文本
   const getSelectedPromptText = () => {
     if (useCustomPrompt) return customPrompt;
     const selected = presetPrompts.find(p => p.id === selectedPromptId);
     return selected ? selected.prompt : '';
-  };
-
-  // 获取 Ollama 模型列表
-  const fetchOllamaModels = async () => {
-    try {
-      setError(null);
-
-      const response = await fetch('/api/proxy/ollama-models', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ollamaUrl: 'http://localhost:11434/api/tags'
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
-
-      if (!response.ok) {
-        throw new Error(`无法获取模型列表: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      // 处理模型列表
-      let modelsList: string[] = [];
-
-      if (data.models && Array.isArray(data.models)) {
-        modelsList = data.models.filter((model: unknown) => typeof model === 'string') as string[];
-      } else if (data.names && Array.isArray(data.names)) {
-        modelsList = data.names.filter((model: unknown) => typeof model === 'string') as string[];
-      }
-
-      if (modelsList.length > 0) {
-        setAvailableModels(modelsList);
-
-        // 如果当前模型不在列表中，则选择第一个模型
-        if (!modelsList.includes(model)) {
-          setModel(modelsList[0]);
-        }
-      } else {
-        setAvailableModels([]);
-      }
-
-      return modelsList;
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      setAvailableModels([]);
-
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        setError('无法连接到 Ollama 服务，请确保 Ollama 已安装并运行');
-      } else if (error instanceof DOMException && error.name === 'AbortError') {
-        setError('获取模型列表超时，请检查 Ollama 服务是否响应');
-      } else {
-        setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
-      }
-
-      return [];
-    }
-  };
-
-  // 处理API设置的显示/隐藏
-  const toggleApiSettings = () => {
-    setShowApiSettings(!showApiSettings);
   };
 
   // 直接从API获取内容
@@ -205,9 +144,7 @@ export default function AIRewritePage() {
         : `${prompt}\n\n原文：\n${text}`;
         
       const data = await generate({
-        apiUrl: llmApiUrl,
-        apiKey: llmApiKey,
-        model: model || 'gpt-4',
+        ...apiConfig,
         prompt: fullPrompt,
         messages: [
           {
@@ -242,8 +179,8 @@ export default function AIRewritePage() {
 
     try {
       // 检查 API 密钥
-      if (apiProvider !== 'ollama' && !llmApiKey) {
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
+      if (notOpenAIKey) {
+        throw new Error(`使用 ${apiConfig.apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
       }
 
       // 获取所选提示词文本
@@ -355,31 +292,8 @@ ${strategiesResponse.content}
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* API 设置部分 */}
-            <ApiSettings
-              showSettings={showApiSettings}
-              toggleSettings={toggleApiSettings}
-              apiProvider={apiProvider}
-              setApiProvider={(provider) => {
-                setApiProvider(provider);
-                if (provider === 'openai') {
-                  setLlmApiUrl('https://api.openai.com/v1/chat/completions');
-                  setModel('gpt-4');
-                } else if (provider === 'ollama') {
-                  setLlmApiUrl('http://localhost:11434/api/generate');
-                  setModel('llama2');
-                  setLlmApiKey('');
-                }
-                setError(null);
-                setApiResponseDetails(null);
-              }}
-              apiUrl={llmApiUrl}
-              setApiUrl={setLlmApiUrl}
-              apiKey={llmApiKey}
-              setApiKey={setLlmApiKey}
-              model={model}
-              setModel={setModel}
-              availableModels={availableModels}
-              fetchModels={fetchOllamaModels}
+            <ApiSettingBlock
+              setApiConfig={setApiConfig}
             />
 
             <div>
@@ -492,8 +406,8 @@ ${strategiesResponse.content}
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={loading || !content.trim() || (useCustomPrompt && !customPrompt.trim()) || (apiProvider !== 'ollama' && !llmApiKey)}
-                className={`px-4 py-2 rounded-md text-white font-medium ${loading || !content.trim() || (useCustomPrompt && !customPrompt.trim()) || (apiProvider !== 'ollama' && !llmApiKey)
+                disabled={loading || !content.trim() || (useCustomPrompt && !customPrompt.trim()) || (notOpenAIKey)}
+                className={`px-4 py-2 rounded-md text-white font-medium ${loading || !content.trim() || (useCustomPrompt && !customPrompt.trim()) || (notOpenAIKey)
                     ? 'bg-indigo-300 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                   }`}

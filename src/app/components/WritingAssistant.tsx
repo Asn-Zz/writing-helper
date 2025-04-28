@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PromptStyle, WritingRequest } from '../lib/types';
 import { generateContent, exportToMarkdown } from '../lib/api';
 import PromptForm from './PromptForm';
 import MarkdownEditor from './MarkdownEditor';
-import ApiSettings from './ApiSettings';
-import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
+import ApiSettingBlock, { ApiConfigProps } from './ApiSettingBlock';
 
 // Default prompt style template
 const defaultPromptStyle: PromptStyle = {
@@ -59,14 +58,19 @@ export default function WritingAssistant() {
   const [promptStyle, setPromptStyle] = useState<PromptStyle>(defaultPromptStyle);
   const [topic, setTopic] = useState<string>('儿时赶海');
   const [keywords, setKeywords] = useState<string>('浙江海边、小时候、渔村、温暖、质朴');
-  const [keywordInput, setKeywordInput] = useState<string>('');
   const [wordCount, setWordCount] = useState<number>(800);
-  
-  // API 设置
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>(DEFAULT_LLM.model); // 添加模型设置
+
+  // API 设置状态
+  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+    apiProvider: 'openai',
+    apiUrl: '',
+    apiKey: '',
+    model: ''
+  })
+
+  const notOpenAIKey = useMemo(() => {    
+    return apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey;
+  }, [apiConfig]);
   
   const [output, setOutput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -75,120 +79,6 @@ export default function WritingAssistant() {
   const [showPromptEditor, setShowPromptEditor] = useState<boolean>(false);
   const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
   const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
-
-  // 添加 Ollama 模型列表状态
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-
-  // 获取可用的 Ollama 模型
-  const fetchOllamaModels = async () => {
-    try {
-      setError(null); // 清除之前的错误
-      console.log('开始获取 Ollama 模型列表...');
-      
-      // 使用代理接口而不是直接调用本地 Ollama API
-      // 这可以避免浏览器的 CORS 限制
-      const response = await fetch('/api/proxy/ollama-models', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ollamaUrl: 'http://localhost:11434/api/tags'
-        }),
-        // 添加超时设置以避免长时间等待
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`获取模型列表失败: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`无法获取模型列表: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('获取到的 Ollama 模型数据:', data);
-      
-      // 检查数据格式，处理可能的不同结构
-      let modelsList: string[] = [];
-      
-      if (data.models && Array.isArray(data.models)) {
-        modelsList = data.models.filter((model: unknown) => typeof model === 'string') as string[];
-      } else if (data.names && Array.isArray(data.names)) {
-        modelsList = data.names.filter((model: unknown) => typeof model === 'string') as string[];
-      }
-      
-      console.log('处理后的模型列表:', modelsList);
-      
-      if (modelsList.length > 0) {
-        // 为了确保UI更新，先清空后设置
-        setAvailableModels([]);
-        setTimeout(() => {
-          setAvailableModels(modelsList);
-          
-          // 如果当前模型不在列表中，则选择第一个模型
-          if (!modelsList.includes(model)) {
-            setModel(modelsList[0]);
-          }
-        }, 10);
-        
-        console.log(`成功获取到 ${modelsList.length} 个 Ollama 模型`);
-      } else {
-        console.warn('未找到 Ollama 模型列表');
-        setAvailableModels([]);
-        // 保持默认模型名称 'llama2'
-      }
-      
-      return modelsList; // 返回处理后的模型列表
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      setAvailableModels([]); // 清空模型列表，使用默认值
-      
-      // 根据错误类型提供更具体的错误信息
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        setError('无法连接到 Ollama 服务，请确保: 1) Ollama 已安装并运行 2) 服务地址正确');
-      } else if (error instanceof DOMException && error.name === 'AbortError') {
-        setError('获取模型列表超时，请检查 Ollama 服务是否响应');
-      } else {
-        setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
-      }
-      
-      return []; // 返回空数组，避免后续处理出错
-    }
-  };
-
-  // 为添加按钮新增单独的处理函数
-  const handleAddKeyword = () => {
-    if (keywordInput.trim()) {
-      // 更新关键词列表
-      const newKeywords = keywordInput.trim();
-      setKeywords(keywords ? `${keywords}、${newKeywords}` : newKeywords);
-      setKeywordInput(''); // 清空输入框
-    }
-  };
-
-  // 当 API 提供商变化时更新 URL 和模型
-  const handleApiProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const provider = e.target.value as ApiProvider;
-    setApiProvider(provider);
-    
-    // 如果是预设的提供商，自动填充 URL
-    if (provider !== PROVIDER_KEY.custom) {
-      setLlmApiUrl(API_URLS[provider]);
-    }
-    
-    // 根据提供商设置默认模型
-    if (provider === PROVIDER_KEY.ollama) {
-      setModel(DEFAULT_OLLAMA_LLM.model);
-      // 清空 API Key，因为 Ollama 不需要
-      setLlmApiKey('');
-    } else if (provider === PROVIDER_KEY.openai) {
-      setModel(DEFAULT_LLM.model);
-    }
-    
-    // 重置错误
-    setError(null);
-    setApiResponseDetails(null);
-  };
 
   const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setKeywords(e.target.value);
@@ -203,33 +93,23 @@ export default function WritingAssistant() {
 
     try {
       // 检查 API 密钥
-      if (apiProvider !== 'ollama' && !llmApiKey) {
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
-      }
-      
-      // 确保使用正确的 URL 端点
-      let apiUrl = llmApiUrl;
-      if (apiProvider === 'ollama' && !llmApiUrl.includes('/api/generate')) {
-        const baseUrl = llmApiUrl.includes('/api/') 
-          ? llmApiUrl.substring(0, llmApiUrl.indexOf('/api/')) 
-          : llmApiUrl;
-        apiUrl = `${baseUrl}/api/generate`;
-        console.log('使用 Ollama 生成端点:', apiUrl);
+      if (notOpenAIKey) {
+        throw new Error(`使用 ${apiConfig.apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
       }
 
       // Prepare the request
       const request: WritingRequest = {
+        llmApiKey: apiConfig.apiKey,
+        llmApiUrl: apiConfig.apiUrl,
+        model: apiConfig.model,
         promptStyle,
         topic,
         keywords: keywords.split('、'),
-        wordCount,
-        llmApiUrl: apiUrl,  // 使用可能修正后的 URL
-        llmApiKey, // Ollama 不需要 API 密钥，但保留该字段以保持接口一致性
-        model  // 添加模型参数
+        wordCount
       };
 
       // 显示请求开始信息
-      console.log(`开始请求 ${apiProvider} API，使用模型: ${model}...`);
+      console.log(`开始请求 ${apiConfig.apiProvider} API，使用模型: ${apiConfig.model}...`);
       
       // Generate content
       const response = await generateContent(request);
@@ -327,34 +207,8 @@ export default function WritingAssistant() {
                   </div>
 
                   {showApiSettings && (
-                    <ApiSettings 
-                      showSettings={true}
-                      toggleSettings={() => {}} // 这里已经控制显示了，所以传入空函数
-                      apiProvider={apiProvider}
-                      setApiProvider={(provider) => {
-                        setApiProvider(provider);
-                        // 当更改提供商时，直接更新URL（使用预定义的默认值）
-                        if (provider === 'openai') {
-                          setLlmApiUrl('https://api.openai.com/v1/chat/completions');
-                          setModel('gpt-4');
-                        } else if (provider === 'ollama') {
-                          setLlmApiUrl('http://localhost:11434/api/generate');  // 确保使用 /api/generate 端点
-                          setModel('llama2');
-                          // 清空 API Key，因为 Ollama 不需要
-                          setLlmApiKey('');
-                        }
-                        // 重置错误
-                        setError(null);
-                        setApiResponseDetails(null);
-                      }}
-                      apiUrl={llmApiUrl}
-                      setApiUrl={setLlmApiUrl}
-                      apiKey={llmApiKey}
-                      setApiKey={setLlmApiKey}
-                      model={model}
-                      setModel={setModel}
-                      availableModels={availableModels}
-                      fetchModels={fetchOllamaModels}
+                    <ApiSettingBlock 
+                      setApiConfig={setApiConfig}
                     />
                   )}
                 </div>
@@ -450,7 +304,7 @@ export default function WritingAssistant() {
                   <button
                     type="submit"
                     className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-6 rounded-md font-medium disabled:opacity-60 disabled:from-gray-400 disabled:to-gray-500 transition duration-150 ease-in-out transform hover:scale-105 shadow-md"
-                    disabled={isLoading || (apiProvider !== 'ollama' && !llmApiKey)}
+                    disabled={isLoading || (notOpenAIKey)}
                   >
                     {isLoading ? (
                       <span className="flex items-center">

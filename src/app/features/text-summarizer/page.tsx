@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import FeatureLayout from '../../components/FeatureLayout';
-import ApiSettings from '../../components/ApiSettings';
+import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
 import { generate } from '@/app/lib/api';
-import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
 
 export default function TextSummarizer() {
   const [text, setText] = useState('');
@@ -12,17 +11,12 @@ export default function TextSummarizer() {
   const [loading, setLoading] = useState(false);
 
   // API 设置状态
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>(DEFAULT_LLM.model);
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-
-  // 处理API设置的显示/隐藏
-  const toggleApiSettings = () => {
-    setShowApiSettings(!showApiSettings);
-  };
+  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+    apiProvider: 'openai',
+    apiUrl: '',
+    apiKey: '',
+    model: ''
+  })
 
   const promptTemplate = `请按以下结构提取文章关键信息并生成摘要：
 核心主题（1句话概括）
@@ -43,12 +37,8 @@ ${text}
     setSummary('');
 
     try {
-      // 这里会调用后端API，现在只是模拟
-      // 实际应用中，应该创建一个API端点处理请求
       const data = await generate({
-        apiUrl: llmApiUrl,
-        apiKey: llmApiKey,
-        model: model || 'gpt-4',
+        ...apiConfig,
         prompt: promptTemplate,
         messages: [
           {
@@ -77,29 +67,7 @@ ${text}
         <div className="p-6">
           <form onSubmit={handleSubmit}>
             {/* API 设置部分 */}
-            <ApiSettings
-              showSettings={showApiSettings}
-              toggleSettings={toggleApiSettings}
-              apiProvider={apiProvider}
-              setApiProvider={(provider) => {
-                setApiProvider(provider);
-                if (provider === 'openai') {
-                  setLlmApiUrl('https://api.openai.com/v1/chat/completions');
-                  setModel('gpt-4');
-                } else if (provider === 'ollama') {
-                  setLlmApiUrl('http://localhost:11434/api/generate');
-                  setModel('llama2');
-                  setLlmApiKey('');
-                }
-              }}
-              apiUrl={llmApiUrl}
-              setApiUrl={setLlmApiUrl}
-              apiKey={llmApiKey}
-              setApiKey={setLlmApiKey}
-              model={model}
-              setModel={setModel}
-              availableModels={availableModels}
-            />
+            <ApiSettingBlock setApiConfig={setApiConfig} />
 
             <div className="my-4">
               <label htmlFor="text" className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,106 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { polishContent } from '../lib/api';
 import { PolishRequest, PolishResponse } from '../lib/types';
-import ApiSettings from './ApiSettings';
-import { DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
+import ApiSettingBlock, { ApiConfigProps } from './ApiSettingBlock';
 
 export default function ArticlePolisher() {
-  const [apiKey, setApiKey] = useState('');
-  const [apiEndpoint, setApiEndpoint] = useState(DEFAULT_LLM.apiUrl);
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [model, setModel] = useState<string>(DEFAULT_LLM.model); // 添加模型设置
-  const [isOllama, setIsOllama] = useState(false);
-  const [ollamaEndpoint, setOllamaEndpoint] = useState(DEFAULT_OLLAMA_LLM.apiUrl);
-  const [ollamaModel, setOllamaModel] = useState(DEFAULT_OLLAMA_LLM.model);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [polishType, setPolishType] = useState<'standard' | 'academic' | 'business' | 'creative'>('standard');
-  const [showApiSettings, setShowApiSettings] = useState(true);
   
   const [originalText, setOriginalText] = useState('');
   const [polishedResult, setPolishedResult] = useState<PolishResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // 获取可用的 Ollama 模型
-  const fetchOllamaModels = async () => {
-    try {
-      setError(null); // 清除之前的错误
-      console.log('开始获取 Ollama 模型列表...');
-      
-      // 使用代理接口而不是直接调用本地 Ollama API
-      const response = await fetch('/api/proxy/ollama-models', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ollamaUrl: 'http://localhost:11434/api/tags'
-        }),
-        // 添加超时设置以避免长时间等待
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`获取模型列表失败: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`无法获取模型列表: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('获取到的 Ollama 模型数据:', data);
-      
-      // 检查数据格式，处理可能的不同结构
-      let modelsList: string[] = [];
-      
-      if (data.models && Array.isArray(data.models)) {
-        modelsList = data.models.filter((model: unknown) => typeof model === 'string') as string[];
-      } else if (data.names && Array.isArray(data.names)) {
-        modelsList = data.names.filter((model: unknown) => typeof model === 'string') as string[];
-      }
-      
-      console.log('处理后的模型列表:', modelsList);
-      
-      if (modelsList.length > 0) {
-        // 为了确保UI更新，先清空后设置
-        setAvailableModels([]);
-        setTimeout(() => {
-          setAvailableModels(modelsList);
-          
-          // 如果当前模型不在列表中，则选择第一个模型
-          if (!modelsList.includes(ollamaModel)) {
-            setOllamaModel(modelsList[0]);
-          }
-        }, 10);
-        
-        console.log(`成功获取到 ${modelsList.length} 个 Ollama 模型`);
-      } else {
-        console.warn('未找到 Ollama 模型列表');
-        setAvailableModels([]);
-        // 保持默认模型名称 'llama2'
-      }
-      
-      return modelsList; // 返回处理后的模型列表
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      setAvailableModels([]); // 清空模型列表，使用默认值
-      setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
-      return []; // 返回空数组，避免后续处理出错
-    }
-  };
 
-  // 当选择 Ollama 时自动设置相关参数
-  useEffect(() => {
-    setIsOllama(apiProvider === 'ollama');
-    if (apiProvider === 'ollama') {
-      fetchOllamaModels();
-    }
-  }, [apiProvider]);
-
-  const toggleApiSettings = () => {
-    setShowApiSettings(!showApiSettings);
-  };
+  // API 设置状态
+  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+    apiProvider: 'openai',
+    apiUrl: '',
+    apiKey: '',
+    model: ''
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,35 +27,12 @@ export default function ArticlePolisher() {
     setError(null);
     setPolishedResult(null);
 
-    try {
-      // 检查 API 密钥要求
-      if (apiProvider !== 'ollama' && !apiKey) {
-        // 非 Ollama 提供商需要 API 密钥
-        throw new Error(`使用 ${apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
-      }
-
-      if (!originalText.trim()) {
-        throw new Error('请输入需要润色的文章内容');
-      }
-
-      // 确保使用正确的 URL 端点
-      let apiUrl = apiProvider === 'ollama' ? ollamaEndpoint : apiEndpoint;
-      if (apiProvider === 'ollama' && !apiUrl.includes('/api/generate')) {
-        const baseUrl = apiUrl.includes('/api/') 
-          ? apiUrl.substring(0, apiUrl.indexOf('/api/')) 
-          : apiUrl;
-        apiUrl = `${baseUrl}/api/generate`;
-        console.log('使用 Ollama 生成端点:', apiUrl);
-      }
-
-      // 根据API提供商选择不同的模型
-      const llmModel = apiProvider === 'ollama' ? ollamaModel : apiProvider === 'openai' ? model : 'gpt-4'
-
+    try {      
       const request: PolishRequest = {
         originalText,
-        llmApiUrl: apiUrl,
-        llmApiKey: apiKey, // Ollama 不需要 API 密钥，但保留该字段以保持接口一致性
-        model: llmModel,
+        llmApiUrl: apiConfig.apiUrl,
+        llmApiKey: apiConfig.apiKey, // Ollama 不需要 API 密钥，但保留该字段以保持接口一致性
+        model: apiConfig.model,
         polishType
       };
 
@@ -171,41 +67,8 @@ export default function ArticlePolisher() {
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* 使用抽离的 API 设置组件 */}
-              <ApiSettings 
-                showSettings={showApiSettings}
-                toggleSettings={toggleApiSettings}
-                apiProvider={apiProvider}
-                setApiProvider={(provider) => {
-                  setApiProvider(provider);
-                  // 当更改提供商时，相应更新URL（使用预定义的默认值）
-                  if (provider === 'openai') {
-                    setApiEndpoint('https://api.openai.com/v1/chat/completions');
-                  } else if (provider === 'ollama') {
-                    setOllamaEndpoint('http://localhost:11434/api/generate');  // 确保使用 /api/generate 端点
-                  }
-                  // 自定义提供商不更改URL
-                }}
-                apiUrl={apiEndpoint}
-                setApiUrl={(url) => {
-                  if (apiProvider === 'ollama') {
-                    setOllamaEndpoint(url);
-                  } else {
-                    setApiEndpoint(url);
-                  }
-                }}
-                apiKey={apiKey}
-                setApiKey={setApiKey}
-                model={model}
-                setModel={(model) => {
-                  if (apiProvider === 'ollama') {
-                    setOllamaModel(model);
-                  } else {
-                    setModel(model);
-                  }
-                  // 其他模型名称暂不需要保存
-                }}
-                availableModels={availableModels}
-                fetchModels={fetchOllamaModels}
+              <ApiSettingBlock
+                setApiConfig={setApiConfig} 
               />
 
               {/* 润色类型设置 */}
@@ -277,7 +140,7 @@ export default function ArticlePolisher() {
                 <button
                   type="submit"
                   className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-6 rounded-md font-medium disabled:opacity-60 disabled:from-gray-400 disabled:to-gray-500 transition duration-150 ease-in-out transform hover:scale-105 shadow-md"
-                  disabled={loading || (apiProvider !== 'ollama' && !apiKey)}
+                  disabled={loading || (apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey)}
                 >
                   {loading ? (
                     <span className="flex items-center">
