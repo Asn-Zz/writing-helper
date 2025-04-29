@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { API_HELP, API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
+import { 
+  API_HELP, 
+  API_URLS, 
+  DEFAULT_LLM, 
+  DEFAULT_ADMIN_LLM, 
+  DEFAULT_OLLAMA_LLM, 
+  PROVIDER_KEY, 
+  ApiProvider 
+} from '@/app/lib/constant'
 
 export interface ApiConfigProps {
   apiProvider: ApiProvider;
@@ -74,37 +82,21 @@ export default function ApiSettings({
 
   // 从 localStorage 加载配置
   const loadApiConfig = () => {
-    try {
-      const savedConfig = localStorage.getItem(storeKey);
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        // 只有当配置存在时才设置
-        if (config.apiProvider) setApiProvider(config.apiProvider as ApiProvider);
-        if (config.apiUrl) setApiUrl(config.apiUrl);
-        if (config.apiKey) setApiKey(config.apiKey);
-        if (config.model) setModel(config.model);
-        console.log('已从本地存储加载API配置');
+    let config = { ...DEFAULT_LLM }
+    const savedConfig = localStorage.getItem(storeKey);
 
-        if (setApiConfig)
-          setApiConfig(config)
+    if (savedConfig) {
+      config = JSON.parse(savedConfig);
+      console.log('已从本地存储加载API配置');
+    }
 
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('加载API配置失败:', error);
-
-      if (setApiConfig) {
-        const config = {
-          apiProvider: apiProvider,
-          apiUrl: apiUrl,
-          apiKey: apiKey,
-          model: model
-        };
-        setApiConfig(config)
-      }
-        
-      return false;
+    if (setApiConfig) {      
+      setApiConfig({
+        apiProvider: config.provider as ApiProvider,
+        apiUrl: config.apiUrl,
+        apiKey: config.apiKey,
+        model: config.model
+      })
     }
   };
 
@@ -114,7 +106,7 @@ export default function ApiSettings({
       localStorage.removeItem(storeKey);
       // 重置为默认值
       setApiProvider(PROVIDER_KEY.openai);
-      setApiUrl(API_URLS.openai);
+      setApiUrl(DEFAULT_LLM.apiUrl);
       setApiKey(DEFAULT_LLM.apiKey);
       setModel(DEFAULT_LLM.model);
       setSaveStatus('saved');
@@ -145,9 +137,11 @@ export default function ApiSettings({
     // 设置默认模型名称
     if (apiProvider === PROVIDER_KEY.openai) {
       setModel(DEFAULT_LLM.model);
+      setApiKey(DEFAULT_LLM.apiKey);
     } else if (apiProvider === PROVIDER_KEY.ollama) {
       // 对于 Ollama，尝试获取可用模型
       setModel(DEFAULT_OLLAMA_LLM.model); // 设置默认值，即使没有获取到模型列表也能有默认值
+      setApiKey(DEFAULT_OLLAMA_LLM.apiKey);
       if (fetchModels) {
         // 异步获取模型列表
         fetchModels().catch(err => {
@@ -163,6 +157,19 @@ export default function ApiSettings({
     }
     // 自定义提供商不设置默认模型
   };
+
+  const storeAuthKey = 'writing_helper_auth_token';
+  const setAuthToken = () => {
+    const password = window.prompt('请输入访问密码:');
+
+    if (password === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
+      localStorage.setItem(storeAuthKey, process.env.NEXT_PUBLIC_AUTH_TOKEN);
+      localStorage.setItem(storeKey, JSON.stringify(DEFAULT_ADMIN_LLM));
+
+      loadApiConfig()
+      console.log('认证成功');
+    }
+  }
 
   return (
     <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
@@ -341,25 +348,36 @@ export default function ApiSettings({
           </div>
           </div>
           
-          <div className="flex justify-end pt-2 border-t border-gray-100">
-          <button
-              type="button"
-              onClick={saveApiConfig}
-              className="inline-flex items-center px-3 py-1.5 mr-3 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-            >
-              保存设置
-            </button>
+          <div className="flex justify-between pt-2 border-t border-gray-100">
+            <div className='flex justify-end'>
+              <button
+                type="button"
+                onClick={setAuthToken}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                访问密码
+              </button>
+            </div>
+            <div className='flex justify-end'>
+              <button
+                type="button"
+                onClick={saveApiConfig}
+                className="inline-flex items-center px-3 py-1.5 mr-3 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+              >
+                保存设置
+              </button>
 
-            <button
-              type="button"
-              onClick={clearApiConfig}
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              重置
-            </button>
+              <button
+                type="button"
+                onClick={clearApiConfig}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                重置
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -35,6 +35,17 @@
 npm install
 ```
 
+### 配置环境变量（可选）
+
+创建一个 `.env.local` 文件在项目根目录，参考 `.env.example` 添加您的API密钥和其他配置：
+
+```
+NEXT_PUBLIC_OPENAI_API_KEY=your_api_key_here
+NEXT_PUBLIC_OPENAI_MODEL=gpt-4
+```
+
+更多环境变量配置说明，请参考 [环境变量使用说明](./docs/ENV_USAGE.md)。
+
 ### 启动开发服务器
 
 ```bash
@@ -123,4 +134,4 @@ npm run dev
 
 ## 📧 联系方式
 
-如有问题或建议，请通过GitHub Issues联系我们。 
+如有问题或建议，请通过GitHub Issues联系我们。

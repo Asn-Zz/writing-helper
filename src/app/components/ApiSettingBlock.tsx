@@ -14,13 +14,16 @@ export default function ApiSettingsBlock({
   setError, 
   setApiConfig 
 }: ApiSettingsProps) {
+  const defaultVisible = true;
+  const storeSettingKey = 'writing_helper_setting_visible';
+
   // API 设置状态
   const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [llmApiUrl, setLlmApiUrl] = useState<string>(API_URLS.openai);
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
+  const [llmApiUrl, setLlmApiUrl] = useState<string>(DEFAULT_LLM.apiUrl);
+  const [llmApiKey, setLlmApiKey] = useState<string>(DEFAULT_LLM.apiKey);
   const [model, setModel] = useState<string>(DEFAULT_LLM.model);
 
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
+  const [showApiSettings, setShowApiSettings] = useState<boolean>(defaultVisible);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
  
   const [isOllama, setIsOllama] = useState(false);
@@ -28,14 +31,21 @@ export default function ApiSettingsBlock({
 
   // 处理API设置的显示/隐藏
   const toggleApiSettings = () => {
-    setShowApiSettings(!showApiSettings);
+    const settingVisible = !showApiSettings
+    localStorage.setItem(storeSettingKey, settingVisible.toString());
+
+    setShowApiSettings(settingVisible);
   };
 
   const setApiConfigByStore = (config: ApiConfigProps) => {
     if (config.apiProvider === PROVIDER_KEY.ollama) {
       setIsOllama(true);
-      setModel(config.model);
     }
+
+    setApiProvider(config.apiProvider);
+    setLlmApiUrl(config.apiUrl);
+    setLlmApiKey(config.apiKey);
+    setModel(config.model);    
 
     if (setApiConfig)
       setApiConfig(config);
@@ -70,6 +80,9 @@ export default function ApiSettingsBlock({
     if (isOllama) {
       fetchOllamaModels();
     }
+
+    const settingVisible = localStorage.getItem(storeSettingKey);
+    setShowApiSettings(settingVisible !== 'false');
   }, [isOllama]);
   // 处理 API 提供商的切换
 
