@@ -21,6 +21,8 @@ export const featureLinks: NavLink[] = [
   
   // 在此处添加新的功能页面链接
   { href: '/features/text-summarizer', label: '文本摘要' },
+
+  { href: '/features/markdown', label: '编辑器' },
   
   { href: '/grok', label: 'API测试' },
 ];
