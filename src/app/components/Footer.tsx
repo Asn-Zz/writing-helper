@@ -30,7 +30,7 @@ export default function Footer() {
           </div> */}
           
           <div className="text-sm text-gray-500">
-            © 2025 AI 编辑工作室 - 由先进的大语言模型驱动的智能创作助手
+            © 2025 AI 编辑工作室 - CopyRight by AsnLee
           </div>
         </div>
       </div>

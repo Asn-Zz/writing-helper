@@ -17,14 +17,14 @@ export const featureLinks: NavLink[] = [
   // { href: '/features/text-summarizer', label: '文本摘要' },
   { href: '/features/ai-rewrite', label: 'AI文本优化' },
 
-  { href: '/polish', label: '文本润色' },
+  { href: '/polish', label: '文章润色' },
   
   // 在此处添加新的功能页面链接
   { href: '/features/text-summarizer', label: '文本摘要' },
 
   { href: '/features/markdown', label: '编辑器' },
   
-  { href: '/grok', label: 'API测试' },
+  // { href: '/grok', label: 'API测试' },
 ];
 
 export default function Navigation() {

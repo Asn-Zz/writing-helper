@@ -159,7 +159,7 @@ export default function WritingAssistant() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">AI 写作助手</h1>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">写作助手</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">使用先进的人工智能模型，根据您的风格偏好生成高质量文章</p>
         </div>
 
