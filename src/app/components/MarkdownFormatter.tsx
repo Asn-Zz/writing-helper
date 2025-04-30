@@ -939,13 +939,11 @@ export default function WechatFormatter() {
               </button>
             </div>
 
-            {showApiSettings && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-                <ApiSettingBlock 
-                   setApiConfig={setApiConfig}
-                />
-              </div>
-            )}
+            <div className="mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+              <ApiSettingBlock 
+                setApiConfig={setApiConfig}
+              />
+            </div>
 
             <div>
               <label htmlFor="style-description" className="block text-sm font-medium mb-2 text-gray-700">

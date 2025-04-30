@@ -53,7 +53,7 @@ export default function ArticlePolisher() {
   };
 
   return (
-    <div className="w-full">
+    <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* 左侧设置区域 */}
         <div className="space-y-6">

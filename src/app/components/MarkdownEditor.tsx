@@ -37,7 +37,7 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
   };
 
   return (
-    <div className="border border-gray-200 rounded-md overflow-hidden">
+    <div className="border border-gray-200 rounded-md overflow-hidden h-full">
       <div className="flex justify-between items-center bg-gray-50 p-2">
         <h3 className="text-sm font-medium">文章内容</h3>
         <button

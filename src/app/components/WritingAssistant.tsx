@@ -78,7 +78,6 @@ export default function WritingAssistant() {
   const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
   const [showPromptEditor, setShowPromptEditor] = useState<boolean>(false);
   const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(true);
 
   const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setKeywords(e.target.value);
@@ -150,68 +149,40 @@ export default function WritingAssistant() {
     setShowDebugInfo(!showDebugInfo);
   };
 
-  const toggleApiSettings = () => {
-    setShowApiSettings(!showApiSettings);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">写作助手</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">使用先进的人工智能模型，根据您的风格偏好生成高质量文章</p>
-        </div>
+    <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container mx-auto">
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
           <div className="space-y-6">
             <div className="bg-white shadow-sm rounded-xl p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-800">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                </svg>
-                写作设置
-              </h2>
+              <div className='flex items-center justify-between'>
+                <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                  </svg>
+                  写作设置
+                </h2>
+
+                <button
+                  type="button"
+                  className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded-md transition duration-150 ease-in-out"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDebugInfo();
+                  }}
+                >
+                  {showDebugInfo ? '隐藏调试信息' : '显示调试信息'}
+                </button>
+              </div>
+              
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* LLM API Settings */}
-                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
-                  <div className="flex justify-between items-center cursor-pointer" onClick={toggleApiSettings}>
-                    <h3 className="font-medium text-gray-700 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1H4v8a1 1 0 001 1h10a1 1 0 001-1V6zM4 4a1 1 0 011-1h10a1 1 0 011 1v1H4V4z" clipRule="evenodd" />
-                      </svg>
-                      API 设置
-                    </h3>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded-md transition duration-150 ease-in-out"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleDebugInfo();
-                        }}
-                      >
-                        {showDebugInfo ? '隐藏调试信息' : '显示调试信息'}
-                      </button>
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${showApiSettings ? 'transform rotate-180' : ''}`} 
-                        viewBox="0 0 20 20" 
-                        fill="currentColor"
-                      >
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {showApiSettings && (
-                    <ApiSettingBlock 
-                      setApiConfig={setApiConfig}
-                    />
-                  )}
-                </div>
+                <ApiSettingBlock 
+                  setApiConfig={setApiConfig}
+                />
 
                 {/* Content Settings */}
                 <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
@@ -369,7 +340,7 @@ export default function WritingAssistant() {
                 )}
                 
                 {isLoading ? (
-                  <div className="flex justify-center items-center bg-gray-50 border border-gray-200 rounded-lg min-h-[400px]">
+                  <div className="flex justify-center items-center bg-gray-50 border border-gray-200 rounded-lg h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
                       <p className="text-gray-600 mb-2">正在生成内容，请稍候...</p>
