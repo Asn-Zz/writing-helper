@@ -9,6 +9,7 @@ type NavLink = {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  target?: string;
   children?: NavLink[];
 };
 
@@ -16,13 +17,14 @@ type NavLink = {
 export const featureLinks: NavLink[] = [
   { href: '/', label: '写作助手' },
   { href: '/features/ai-rewrite', label: 'AI文本优化' },
+  { href: '/polish', label: '文章润色' },
+  { href: '/features/text-summarizer', label: '文本摘要' },
   { 
     href: '#', 
     label: '其他工具', 
     children: [
-      { href: '/polish', label: '文章润色' },
-      { href: '/features/text-summarizer', label: '文本摘要' },
       { href: '/features/markdown', label: '编辑器' },
+      { href: 'https://deep.codepoem.top/', label: '调研报告', target: '_blank' },
     ] 
   },
   // { href: '/grok', label: 'API测试' },
@@ -122,6 +124,7 @@ export default function Navigation() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    target={link.target}
                     className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${isActive
                       ? 'border-b-2 border-indigo-500 text-gray-900'
                       : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -228,6 +231,7 @@ export default function Navigation() {
               <Link
                 key={link.href}
                 href={link.href}
+                target={link.target}
                 className={`block rounded-md px-3 py-2 text-base font-medium ${isActive
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
