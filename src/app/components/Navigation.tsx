@@ -23,8 +23,8 @@ export const featureLinks: NavLink[] = [
     href: '#', 
     label: '其他工具', 
     children: [
-      { href: '/features/markdown', label: '编辑器' },
-      { href: 'https://deep.codepoem.top/', label: '调研报告', target: '_blank' },
+      { href: '/features/markdown', label: '编辑器', target: '_blank' },
+      { href: 'https://deep.codepoem.top', label: '调研报告', target: '_blank' },
     ] 
   },
   // { href: '/grok', label: 'API测试' },
@@ -101,6 +101,7 @@ export default function Navigation() {
                                 <Link
                                   key={child.href}
                                   href={child.href}
+                                  target={child.target}
                                   className={`block px-4 py-2 text-sm ${isChildActive
                                     ? 'bg-gray-100 text-gray-900'
                                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
