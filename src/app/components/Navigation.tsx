@@ -15,12 +15,23 @@ type NavLink = {
 
 // 集中管理所有功能页面的导航链接
 export const featureLinks: NavLink[] = [
+  { href: '/features/topic-selector', label: '选题情报' },
   { href: '/', label: '写作助手' },
   { href: '/features/ai-rewrite', label: 'AI文本优化' },
-  { href: '/polish', label: '文章润色' },
-  { href: '/features/text-summarizer', label: '文本摘要' },
+  { href: '/features/checker', label: '文章校对' },
+  { href: '/features/media-editor', label: '新媒体编辑' },
+  { href: '/features/comment-editor', label: '评论编辑' },
   { 
-    href: '#', 
+    href: '#text', 
+    label: '文本工具', 
+    children: [
+      { href: '/polish', label: '文章润色' },
+      { href: '/features/text-summarizer', label: '文本摘要' },
+      { href: 'https://card.3min.top', label: '文字卡片', target: '_blank' },
+    ] 
+  },
+  { 
+    href: '#other', 
     label: '其他工具', 
     children: [
       { href: '/features/markdown', label: '编辑器', target: '_blank' },
