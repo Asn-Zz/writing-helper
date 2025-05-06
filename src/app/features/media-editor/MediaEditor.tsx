@@ -8,6 +8,8 @@ import {
     FaChartLine, FaEye, FaBrain, FaCheck
 } from 'react-icons/fa'; // Using Font Awesome 6 via react-icons/fa6 or fa
 import { FaRegHeart, FaRegComment, FaRegStar, FaRegThumbsUp } from 'react-icons/fa'; // Regular icons
+import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
+import { generate } from '../../lib/api';
 
 // Define a type for the analysis data structure
 interface AnalysisScore {
@@ -67,16 +69,12 @@ export default function NewMediaEditorPage() {
     const [copyButtonIcon, setCopyButtonIcon] = useState<React.ElementType>(FaCopy);
 
     // --- API Configuration (Hardcoded for now - move to environment variables) ---
-    const apiConfig = useMemo(() => ({
-        apiUrl: process.env.NEXT_PUBLIC_TEXT_API_URL || 'https://asnlee-proxy.hf.space/deepseek/v1/chat/completions', // Example using env var
-        apiKey: process.env.NEXT_PUBLIC_TEXT_API_KEY || 'asnlee', // Example using env var
-        model: process.env.NEXT_PUBLIC_TEXT_API_MODEL || 'DeepSeek-v3-Search',
-        temperature: 1,
-        customPrompt: '你是一个专业的新媒体运营人员，能够为内容创作者快速生成适配不同平台的优质内容。',
-        qwenApiUrl: process.env.NEXT_PUBLIC_QWEN_API_URL || 'https://warm-squirrel-74.deno.dev/v1/chat/completions',
-        qwenApiKey: process.env.NEXT_PUBLIC_QWEN_API_KEY || 'xy666',
-        qwenModel: 'Qwen2.5-VL-72B-Instruct' // This seems fixed in the original code
-    }), []);
+    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+      apiProvider: 'openai',
+      apiUrl: '',
+      apiKey: '',
+      model: '',
+    })
 
     // --- Effects ---
     // Load initial topics from localStorage on mount
@@ -252,121 +250,80 @@ export default function NewMediaEditorPage() {
     }, [platforms, selectedPlatform, selectedStyle, selectedTopics, contentTopic, contentInput]);
 
     const callSiliconFlowAPI = useCallback(async (isForPreview: boolean = false): Promise<{ title: string; content: string; analysis: AnalysisData }> => {
-        if (!apiConfig.apiKey || !apiConfig.apiUrl) {
-            throw new Error("API Key 或 API URL 未配置");
+      const prompt = createPrompt(isForPreview);
+
+      const data = await generate({
+        ...apiConfig,
+        messages: [
+          { role: "system", content: '你是一个专业的新媒体运营人员，能够为内容创作者快速生成适配不同平台的优质内容。' },
+          { role: "user", content: prompt }
+        ],
+        temperature: 1,
+        // response_format: { type: "json_object" }
+      })
+
+      let parsedContent
+
+      try {
+        parsedContent = JSON.parse(data.content);
+
+        if (!parsedContent || typeof parsedContent.content !== 'string' || typeof parsedContent.analysis !== 'object') {
+          throw new Error('解析后的JSON结构不符合预期');
         }
 
-        const prompt = createPrompt(isForPreview);
-
-        const response = await fetch(apiConfig.apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiConfig.apiKey}`
-            },
-            body: JSON.stringify({
-                model: apiConfig.model,
-                messages: [
-                    { role: "system", content: apiConfig.customPrompt },
-                    { role: "user", content: prompt }
-                ],
-                temperature: apiConfig.temperature,
-                stream: false,
-                // response_format: { type: "json_object" } // Enable if API supports
-            })
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("API Error Response:", errorBody);
-            throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.choices?.[0]?.message?.content) {
-            throw new Error('API响应格式不正确，缺少必要内容');
-        }
-
-        const aiMessage = data.choices[0].message.content;
-        let parsedContent;
-
-        try {
-            const responseContent = aiMessage.replace(/^```json\s*|```$/g, '').trim();
-            parsedContent = JSON.parse(responseContent);
-
-            if (!parsedContent || typeof parsedContent.content !== 'string' || typeof parsedContent.analysis !== 'object') {
-                throw new Error('解析后的JSON结构不符合预期');
-            }
-            // Ensure analysis sub-fields exist (provide defaults if missing)
-            parsedContent.analysis = {
-                readability: parsedContent.analysis.readability || { score: 70, comment: '未提供评分' },
-                engagement: parsedContent.analysis.engagement || { score: 70, comment: '未提供评分' },
-                keywords: parsedContent.analysis.keywords || { score: 70, comment: '未提供评分' },
-                suggestions: parsedContent.analysis.suggestions || [{ type: 'warning', text: '未提供建议' }]
-            };
-
-        } catch (jsonError) {
-            console.warn('JSON解析失败，将尝试使用原始文本:', jsonError);
-            console.warn('原始AI响应:', aiMessage);
-            parsedContent = {
-                title: contentTopic ? `关于${contentTopic}的${selectedStyle}文案` : `${selectedStyle}风格文案`,
-                content: aiMessage,
-                analysis: generateFallbackAnalysisData()
-            };
-        }
-
-        return {
-            title: parsedContent.title || '',
-            content: parsedContent.content,
-            analysis: parsedContent.analysis
+        // Ensure analysis sub-fields exist (provide defaults if missing)
+        parsedContent.analysis = {
+          readability: parsedContent.analysis.readability || { score: 70, comment: '未提供评分' },
+          engagement: parsedContent.analysis.engagement || { score: 70, comment: '未提供评分' },
+          keywords: parsedContent.analysis.keywords || { score: 70, comment: '未提供评分' },
+          suggestions: parsedContent.analysis.suggestions || [{ type: 'warning', text: '未提供建议' }]
         };
+
+        parsedContent = {
+          title: parsedContent.title || '',
+          content: parsedContent.content,
+          analysis: parsedContent.analysis
+        };
+      } catch (jsonError) {
+        console.warn('JSON解析失败，将尝试使用原始文本:', jsonError);
+        console.warn('原始AI响应:', data.content);
+
+        parsedContent = {
+          title: contentTopic ? `关于${contentTopic}的${selectedStyle}文案` : `${selectedStyle}风格文案`,
+          content: data.content,
+          analysis: generateFallbackAnalysisData()
+        }
+      }
+
+      return {
+        title: parsedContent.title || '',
+        content: parsedContent.content,
+        analysis: parsedContent.analysis
+      };
     }, [apiConfig, createPrompt, contentTopic, selectedStyle, generateFallbackAnalysisData]);
 
     const callQwenVLAPI = useCallback(async (): Promise<string> => {
-        if (!apiConfig.qwenApiKey || !apiConfig.qwenApiUrl) {
-            throw new Error('Qwen API Key 或 URL 未配置');
-        }
         if (!uploadedImage) {
-            throw new Error('没有上传图片');
+          throw new Error('没有上传图片');
         }
 
         const prompt = '请识别图片中的所有文本内容，并以纯文本格式返回。保持原始格式和段落结构。不要添加任何解释或额外内容，只需返回图片中的文字。';
 
-        const response = await fetch(apiConfig.qwenApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiConfig.qwenApiKey}`
-            },
-            body: JSON.stringify({
-                model: apiConfig.qwenModel,
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: prompt },
-                            { type: 'image_url', image_url: { url: uploadedImage } }
-                        ]
-                    }
-                ],
-                temperature: apiConfig.temperature // Maybe use lower temp for OCR?
-            })
-        });
+        const data = await generate({
+          ...apiConfig,
+          model: 'Qwen2.5-VL-72B-Instruct',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: uploadedImage } }
+            ]
+          }],
+          temperature: 0.1,
+          // response_format: { type: "json_object" }
+        })
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error('Qwen API Error:', errorBody);
-            throw new Error(`Qwen API请求失败: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.choices?.[0]?.message?.content) {
-            throw new Error('Qwen API响应格式不正确，缺少必要内容');
-        }
-
-        return data.choices[0].message.content;
+        return data.content;
     }, [apiConfig, uploadedImage]);
 
 
@@ -428,7 +385,7 @@ export default function NewMediaEditorPage() {
     const handleAnalyzeImage = useCallback(async () => {
         if (!uploadedImage || isLoading || isImageAnalyzing) return;
 
-        if (!apiConfig.qwenApiKey) {
+        if (!apiConfig.apiKey) {
             alert('请配置Qwen API密钥以使用图片分析功能');
             // Consider adding a way to prompt for config if needed, or disable button
             return;
@@ -448,7 +405,7 @@ export default function NewMediaEditorPage() {
             setIsLoading(false);
             setIsImageAnalyzing(false);
         }
-    }, [uploadedImage, isLoading, isImageAnalyzing, apiConfig.qwenApiKey, callQwenVLAPI]);
+    }, [uploadedImage, isLoading, isImageAnalyzing, apiConfig.apiKey, callQwenVLAPI]);
 
     const handleCopyContent = useCallback(() => {
         const platform = activePreviewTab;
@@ -492,25 +449,22 @@ export default function NewMediaEditorPage() {
     // --- Render ---
     return (
         <div className="container mx-auto">
-            {/* Header */}
-            {/* <header className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">新媒体编辑</h1>
-                <p className="text-xl text-gray-600">全渠道社交媒体文案创建工具</p>
-            </header> */}
+            {/* API 设置部分 */}
+            <ApiSettingBlock setApiConfig={setApiConfig} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
                 {/* Left Side: Content Creation & Analysis */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Content Creation Panel */}
                     <div className="bg-white rounded-lg shadow-md p-6 relative">
-                        {isLoading && (
+                        {/* {isLoading && (
                             <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-10 rounded-lg">
                                 <span className="text-blue-600 font-bold flex items-center">
                                     <FaSpinner className="animate-spin mr-2" />
                                     {isImageAnalyzing ? '图片分析中...' : (isImageLoading ? '封面生成中...' : 'AI处理中...')}
                                 </span>
                             </div>
-                        )}
+                        )} */}
 
                         <h2 className="text-xl font-bold mb-4 text-gray-800">内容创作</h2>
 
@@ -613,8 +567,8 @@ export default function NewMediaEditorPage() {
                                         key={style}
                                         onClick={() => handleStyleSelect(style)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${selectedStyle === style
-                                                ? 'bg-purple-600 text-white'
-                                                : 'bg-gray-200 text-gray-700 hover:bg-purple-100'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
                                             }`}
                                     >
                                         {style}
@@ -668,12 +622,12 @@ export default function NewMediaEditorPage() {
                                 className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading && !isImageAnalyzing ? <FaSpinner className="animate-spin mr-2" /> : <FaMagic className="mr-2" />}
-                                {isLoading && !isImageAnalyzing ? '生成中...' : 'AI生成/优化'}
+                                {isLoading && !isImageAnalyzing ? '生成中...' : 'AI生成'}
                             </button>
                              <button
                                 onClick={() => handleGenerateContent(true)} // Pass true for preview/imitation
                                 disabled={isLoading || !contentInput} // Disable if no input for imitation
-                                className="px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaCopy className="mr-2" />}
                                 {isLoading ? '仿写中...' : 'AI仿写'}

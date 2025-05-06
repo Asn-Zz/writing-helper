@@ -8,6 +8,8 @@ import {
     FaPlay, FaDownload, FaExclamationCircle, FaMagic, FaListUl, FaCheckCircle,
     FaArrowRight, FaCamera, FaInfoCircle, FaPaintBrush
 } from 'react-icons/fa'; // Import necessary icons
+import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
+import { generate } from '../../lib/api';
 import mammoth from 'mammoth'; // Import mammoth for DOCX
 import './style.css';
 
@@ -71,6 +73,14 @@ export default function CheckerEditor() {
     const [showResults, setShowResults] = useState(false);
     const [issues, setIssues] = useState<Issue[]>([]); // Proofreading issues
     const [apiError, setApiError] = useState<string | null>(null); // Proofreading API error
+
+    // API 设置状态
+    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
+      apiProvider: 'openai',
+      apiUrl: '',
+      apiKey: '',
+      model: ''
+    })
 
     // File Upload State
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -262,10 +272,6 @@ ${text}
 
     const checkText = useCallback(async () => {
         if (isLoading || !inputText.trim()) return;
-        if (!API_CONFIG.apiKey || !API_CONFIG.apiUrl) {
-            setApiError('API URL 或 Key 未配置 (硬编码)。'); // Update error message
-            return;
-        }
 
         setIsLoading(true);
         setShowResults(false);
@@ -277,56 +283,18 @@ ${text}
 
         try {
             const prompt = createPrompt(inputText);
-            const response = await fetch(API_CONFIG.apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_CONFIG.apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: API_CONFIG.model,
-                    messages: [
-                        { role: "system", content: API_CONFIG.customPrompt },
-                        { role: "user", content: prompt }
-                    ],
-                    stream: false,
-                    temperature: 0.1
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`校对API请求失败: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`);
-            }
-
-            const data = await response.json();
-            if (!data.choices || !data.choices[0]?.message?.content) {
-                 throw new Error('校对API响应格式无效。');
-            }
-
-            let responseContent = data.choices[0].message.content;
-            responseContent = responseContent.replace(/^```json\s*|```$/g, '').trim();
-
-            let parsedIssues: any[] = [];
-            try {
-                parsedIssues = JSON.parse(responseContent);
-                if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组。');
-            } catch (e: any) {
-                console.error('解析校对API响应失败:', e, '原始响应:', responseContent);
-                // Attempt to find JSON within potential markdown backticks if simple parsing failed
-                const jsonMatch = responseContent.match(/```json\s*([\s\S]*?)\s*```/);
-                if (jsonMatch && jsonMatch[1]) {
-                    try {
-                        parsedIssues = JSON.parse(jsonMatch[1]);
-                         if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组 (二次尝试)。');
-                    } catch (e2: any) {
-                         throw new Error(`无法解析校对API响应: ${e.message} / ${e2.message}`);
-                    }
-                } else {
-                     throw new Error(`无法解析校对API响应: ${e.message}`);
-                }
-            }
-
+            const data = await generate({
+              ...apiConfig,
+              messages: [
+                { role: "system", content: API_CONFIG.customPrompt },
+                { role: "user", content: prompt }
+              ],
+              temperature: 0.1,
+              // response_format: { type: "json_object" }
+            })
+            const parsedIssues = JSON.parse(data.content);
+            if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组。');
+            
             let currentOffset = 0;
             const processedIssues: Issue[] = [];
             let issueIdCounter = 0;
@@ -375,7 +343,7 @@ ${text}
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, inputText, createPrompt]);
+    }, [isLoading, inputText, createPrompt, apiConfig]);
 
     // --- IMPORTANT: applyFixesToInputText ---
     // This function modifies the main inputText state based on accepted suggestions.
@@ -566,13 +534,11 @@ ${text}
     // --- Render ---
     return (
         <div className="container mx-auto">
-            {/* <header className="mb-8 text-center">
-                <h1 className="text-3xl font-bold text-blue-600 mb-2">文章校对与生成助手</h1>
-                <p className="text-gray-600">智能校对、文本转语音、封面图生成</p>
-            </header> */}
+            {/* API 设置部分 */}
+            <ApiSettingBlock setApiConfig={setApiConfig} />
 
             {/* Input Area */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6 mt-4 mb-8">
                 <div className="flex items-center mb-4">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                         <FaPenFancy className="text-blue-500" />

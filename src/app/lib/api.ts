@@ -28,6 +28,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       requestBody = {
         model: model || 'gpt-4',
         messages,
+        stream,
         temperature
       };
     }
@@ -71,7 +72,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
         // 标准格式
         content = data.choices[0].message.content;
-        content = content.replace(/^```json\s*|```$/g, '').trim();
+        content = content.replace(/```json\s*|```/g, '').trim();
         console.log('从 choices[0].message.content 提取内容');
       } else if (data.error) {
         // 有明确的错误信息
