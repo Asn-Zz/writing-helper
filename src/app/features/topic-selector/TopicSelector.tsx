@@ -953,7 +953,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                  {/* == Hot Topics Section == */}
                 {appMode === 'topic' && (
                     <div>
-                        <section className="p-5 rounded-lg custom-shadow bg-white flex flex-col my-6 no-print print-shadow-none print-bg-white">
+                        <section className="p-5 rounded-lg custom-shadow bg-white flex flex-col mt-6 no-print print-shadow-none print-bg-white">
                              <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-semibold text-gray-700 flex items-center">
                                     <FaFire className="mr-2 text-purple-500" /> 热门话题
@@ -1006,7 +1006,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
 
                             {/* Hot Topics List */}
                             {!isHotTopicsLoading && !hotTopicsError && sortedHotTopics.length > 0 && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto scrollbar-hide p-1"> {/* Added max-h and overflow */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-120 overflow-y-auto scrollbar-hide p-1"> {/* Added max-h and overflow */}
                                     {sortedHotTopics.map((topic, index) => (
                                         <div key={topic.url} className="p-3 rounded-lg bg-white custom-shadow info-item-card flex flex-col justify-between space-y-2 border border-gray-100">
                                             <div className="flex-1 min-w-0">
