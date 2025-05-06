@@ -198,7 +198,7 @@ export default function HomePage() {
     const processBookData = useCallback((rawBooks: any[]): Book[] => {
         if (!Array.isArray(rawBooks)) return [];
         return rawBooks.map((b, index) => {
-            const imgUrl = b.img || b.img_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23cccccc' d='M352 0H160C71.6 0 0 71.6 0 160v192c0 88.4 71.6 160 160 160h192c88.4 0 160-71.6 160-160V160C512 71.6 440.4 0 352 0zM160 64h192c17.7 0 32 14.3 32 32s-14.3 32-32 32H160c-17.7 0-32-14.3-32-32s14.3-32 32-32zm192 384H160c-53 0-96-43-96-96V192h384v160c0 53-43 96-96 96z'/%3E%3C/svg%3E";
+            const imgUrl = b.img_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23cccccc' d='M352 0H160C71.6 0 0 71.6 0 160v192c0 88.4 71.6 160 160 160h192c88.4 0 160-71.6 160-160V160C512 71.6 440.4 0 352 0zM160 64h192c17.7 0 32 14.3 32 32s-14.3 32-32 32H160c-17.7 0-32-14.3-32-32s14.3-32 32-32zm192 384H160c-53 0-96-43-96-96V192h384v160c0 53-43 96-96 96z'/%3E%3C/svg%3E";
             const starsInfo = generateStars(b.newRating || b.score);
             const readingCount = Number(b.reading_count || b.review_total) || 0;
             return {
@@ -693,13 +693,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                     </button>
                 </nav>
 
-                {/* Loading & Error (Common) */}
-                {isLoading && appMode !== 'topic' && ( // Exclude main loading for topic section
-                    <div className="my-6 text-center text-lg text-blue-500 font-semibold">
-                        <FaSpinner className="animate-spin inline mr-3" /> {loadingMessage}
-                    </div>
-                )}
-                 {errorMessage && (
+                {errorMessage && (
                     <div className="my-6 p-4 bg-red-100 text-red-700 border border-red-300 rounded-lg text-center">
                         <FaRobot className="inline mr-2" /> {errorMessage}
                     </div>
