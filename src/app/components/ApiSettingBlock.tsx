@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import ApiSettings, { ApiConfigProps } from './ApiSettings';
-import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '@/app/lib/constant'
+import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '../lib/constant'
+import { useLocalStorage } from '../hooks/useLocalStorage';
 export type { ApiConfigProps } from './ApiSettings';
 
 export interface ApiSettingsProps {
@@ -15,7 +16,7 @@ export default function ApiSettingsBlock({
   setApiConfig 
 }: ApiSettingsProps) {
   const defaultVisible = true;
-  const storeSettingKey = 'writing_helper_setting_visible';
+  const [settingVisible, setSettingVisible] = useLocalStorage('writing_helper_setting_visible', true);
 
   // API 设置状态
   const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
@@ -32,8 +33,8 @@ export default function ApiSettingsBlock({
   // 处理API设置的显示/隐藏
   const toggleApiSettings = () => {
     const settingVisible = !showApiSettings
-    localStorage.setItem(storeSettingKey, settingVisible.toString());
 
+    setSettingVisible(settingVisible);
     setShowApiSettings(settingVisible);
   };
 
@@ -81,9 +82,8 @@ export default function ApiSettingsBlock({
       fetchOllamaModels();
     }
 
-    const settingVisible = localStorage.getItem(storeSettingKey);
-    setShowApiSettings(settingVisible !== 'false');
-  }, [isOllama]);
+    setShowApiSettings(settingVisible);
+  }, [isOllama, settingVisible]);
   // 处理 API 提供商的切换
 
   return <>

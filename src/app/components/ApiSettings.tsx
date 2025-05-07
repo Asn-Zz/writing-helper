@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { 
   API_HELP, 
   API_URLS, 
@@ -10,6 +10,7 @@ import {
   PROVIDER_KEY, 
   ApiProvider 
 } from '@/app/lib/constant'
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export interface ApiConfigProps {
   apiProvider: ApiProvider;
@@ -51,66 +52,39 @@ export default function ApiSettings({
   fetchModels
 }: ApiSettingsProps) {
   // 添加保存状态指示器
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const storeKey = 'writing_helper_api_config';
+  const storeKey = 'writing_helper_api_config'; 
+  const [settingConfig, setSettingConfig, saveStatus] = useLocalStorage(storeKey, DEFAULT_LLM);
   
   // 存储配置到 localStorage
   const saveApiConfig = () => {
     try {
-      setSaveStatus('saving');
       const apiConfig = {
         apiProvider: apiProvider,
         apiUrl: apiUrl,
         apiKey: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
         model: model
       };
-      localStorage.setItem(storeKey, JSON.stringify(apiConfig));
-      console.log('API配置已保存到本地存储');
-      setSaveStatus('saved');
-      if (setApiConfig)
-        setApiConfig(apiConfig)
-      
-      // 3秒后重置保存状态
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 1500);
+      setSettingConfig(apiConfig);
+      loadApiConfig(apiConfig);
     } catch (error) {
       console.error('保存API配置失败:', error);
-      setSaveStatus('idle');
     }
   };
 
   // 从 localStorage 加载配置
-  const loadApiConfig = () => {
-    let config = { ...DEFAULT_LLM }
-    const savedConfig = localStorage.getItem(storeKey);
-
-    if (savedConfig) {
-      config = JSON.parse(savedConfig);
-      console.log('已从本地存储加载API配置');
-    }
-
-    if (setApiConfig) {      
-      setApiConfig({
-        apiProvider: config.provider as ApiProvider,
-        apiUrl: config.apiUrl,
-        apiKey: config.apiKey,
-        model: config.model
-      })
+  const loadApiConfig = (config = DEFAULT_LLM) => {
+    if (setApiConfig) {
+      console.log('已从本地存储加载API配置');      
+      setApiConfig(config)
     }
   };
 
   // 清除所有API配置
   const clearApiConfig = () => {
     try {
-      localStorage.removeItem(storeKey);
       // 重置为默认值
-      setApiProvider(PROVIDER_KEY.openai);
-      setApiUrl(DEFAULT_LLM.apiUrl);
-      setApiKey(DEFAULT_LLM.apiKey);
-      setModel(DEFAULT_LLM.model);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      setSettingConfig(DEFAULT_LLM);
+      loadApiConfig(DEFAULT_LLM);
       console.log('API配置已重置');
     } catch (error) {
       console.error('清除API配置失败:', error);
@@ -119,7 +93,7 @@ export default function ApiSettings({
 
   // 组件挂载时加载配置
   useEffect(() => {
-    loadApiConfig();
+    loadApiConfig(settingConfig);
   }, []);
   
   const handleApiProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -164,9 +138,9 @@ export default function ApiSettings({
 
     if (password === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
       localStorage.setItem(storeAuthKey, process.env.NEXT_PUBLIC_AUTH_TOKEN);
-      localStorage.setItem(storeKey, JSON.stringify(DEFAULT_ADMIN_LLM));
+      setSettingConfig(DEFAULT_ADMIN_LLM)
 
-      loadApiConfig()
+      loadApiConfig(DEFAULT_ADMIN_LLM)
       console.log('认证成功');
     }
   }

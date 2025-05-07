@@ -35,24 +35,24 @@ export const PROVIDER_KEY: Record<ApiProvider, ApiProvider> = {
 };
 
 // 默认 API URLs
-export const DEFAULT_LLM: Record<string, string> = {
-    provider: PROVIDER_KEY.openai,
+export const DEFAULT_LLM = {
+    apiProvider: PROVIDER_KEY.openai as ApiProvider,
     apiUrl: OPENAI_API.URL,
     apiKey: OPENAI_API.KEY,
     model: OPENAI_API.MODEL
 };
 
 // 默认 API URLs
-export const DEFAULT_ADMIN_LLM: Record<string, string> = {
-    provider: PROVIDER_KEY.openai,
+export const DEFAULT_ADMIN_LLM = {
+    apiProvider: PROVIDER_KEY.openai,
     apiUrl: process.env.NEXT_PUBLIC_OPENAI_API_URL || OPENAI_API.URL,
     apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || OPENAI_API.KEY,
     model: process.env.NEXT_PUBLIC_OPENAI_MODEL || OPENAI_API.MODEL
 };
 
 // 默认 API URLs
-export const DEFAULT_OLLAMA_LLM: Record<string, string> = {
-    provider: PROVIDER_KEY.ollama,
+export const DEFAULT_OLLAMA_LLM = {
+    apiProvider: PROVIDER_KEY.ollama,
     apiUrl: process.env.NEXT_PUBLIC_OLLAMA_API_URL || OLLAMA_API.URL,
     apiKey: '',
     model: process.env.NEXT_PUBLIC_OLLAMA_MODEL || OLLAMA_API.MODEL
