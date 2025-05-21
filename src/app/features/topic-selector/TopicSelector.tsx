@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'; // Required for hooks and event handlers
 
 import React, { useState, useRef, useCallback, useMemo } from 'react';

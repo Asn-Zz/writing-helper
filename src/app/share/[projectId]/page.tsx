@@ -13,7 +13,7 @@ export default function PasswordPage() {
   const [passwordDigits, setPasswordDigits] = useState(['', '', '', '']);
   const [errorMessage, setErrorMessage] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const digitRefs = useRef([]);
+  const digitRefs = useRef<any[]>([]);
 
   // 检查所有数字是否已输入
   const checkAllDigits = () => {
@@ -21,7 +21,7 @@ export default function PasswordPage() {
   };
 
   // 处理单个数字输入
-  const handleDigitChange = (e, index) => {
+  const handleDigitChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const value = e.target.value;
     // 确保只输入数字
     if (!/^\d*$/.test(value)) {
@@ -40,7 +40,7 @@ export default function PasswordPage() {
   };
 
   // 处理删除键
-  const handleKeyDown = (e, index) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === 'Backspace' && !passwordDigits[index] && index > 0) {
       digitRefs.current[index - 1].focus();
     }
@@ -152,11 +152,11 @@ export default function PasswordPage() {
                 type="text"
                 id={`digit-${index + 1}`}
                 className={styles.digitInput}
-                maxLength="1"
+                maxLength={1}
                 value={digit}
                 onChange={(e) => handleDigitChange(e, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
-                ref={el => digitRefs.current[index] = el} // 存储ref
+                ref={(el: any) => digitRefs.current[index] = el} // 存储ref
               />
             ))}
           </div>
