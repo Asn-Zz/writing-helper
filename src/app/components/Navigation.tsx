@@ -35,6 +35,8 @@ export const featureLinks: NavLink[] = [
     label: '其他工具', 
     children: [
       { href: '/features/markdown', label: '编辑器', target: '_blank' },
+      { href: '/share/to-markdown', label: '文件转markdown', target: '_blank' },
+      { href: '/share/to-podcast', label: '音频转播客', target: '_blank' },
       { href: 'https://deep.codepoem.top', label: '调研报告', target: '_blank' },
     ] 
   },

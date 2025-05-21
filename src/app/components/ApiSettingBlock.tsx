@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ApiSettings, { ApiConfigProps } from './ApiSettings';
 import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '../lib/constant'
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -46,11 +46,46 @@ export default function ApiSettingsBlock({
     setApiProvider(config.apiProvider);
     setLlmApiUrl(config.apiUrl);
     setLlmApiKey(config.apiKey);
-    setModel(config.model);    
+    setModel(config.model);
+    
+    if (config.apiKey)
+      setAvailableModels([config.model]);
 
     if (setApiConfig)
       setApiConfig(config);
   }
+
+  // 获取可用的 OpenAI 模型
+  const fetchOpenAIModels = async () => {
+    try {
+      const modelUrl = llmApiUrl.split('/v1')[0];
+      const response = await fetch(`${modelUrl}/v1/models`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${llmApiKey}`,
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('无法获取模型列表');
+      }
+
+      const res = await response.json();
+      
+      if (res.data) {
+        const models = res.data.map((model: Record<string, unknown>) => model.id);
+
+        setAvailableModels(models);
+        if (models.length > 0 && !models.includes(model)) {
+          setModel(models[0]);
+        }
+      }
+    } catch (error) {
+      console.error('获取模型列表失败:', error);
+      if (setError)
+        setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
+    }
+  };
 
   // 获取可用的 Ollama 模型
   const fetchOllamaModels = async () => {
@@ -78,12 +113,8 @@ export default function ApiSettingsBlock({
   };
 
   useEffect(() => {
-    if (isOllama) {
-      fetchOllamaModels();
-    }
-
     setShowApiSettings(settingVisible);
-  }, [isOllama, settingVisible]);
+  }, [settingVisible]);
   // 处理 API 提供商的切换
 
   return <>
@@ -101,7 +132,7 @@ export default function ApiSettingsBlock({
       model={model}
       setModel={setModel}
       availableModels={availableModels}
-      fetchModels={fetchOllamaModels}
+      fetchModels={isOllama ? fetchOllamaModels : fetchOpenAIModels}
     />
   </>
 }

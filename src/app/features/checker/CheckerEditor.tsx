@@ -44,11 +44,11 @@ const API_CONFIG = {
     intensity: 'strict', // 'gentle', 'moderate', 'strict'
     customPrompt: '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。',
     // TTS
-    ttsApiUrl: 'https://asn-proxy.deno.dev/silicon/v1/audio/speech',
+    ttsApiUrl: 'https://asnlee-silicon.hf.space/v1/audio/speech',
     ttsApiKey: 'asnlee', // WARNING: Hardcoding keys is insecure
     ttsModel: 'FunAudioLLM/CosyVoice2-0.5B',
     // Image Generation
-    imageApiUrl: 'https://asn-proxy.deno.dev/poll/v1/images/generations',
+    imageApiUrl: 'https://asnlee-poll.hf.space/v1/images/generations',
     imageApiKey: 'asnlee', // WARNING: Hardcoding keys is insecure
     imageModel: 'flux',
 };
