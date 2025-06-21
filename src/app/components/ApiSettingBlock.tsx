@@ -58,8 +58,8 @@ export default function ApiSettingsBlock({
   // 获取可用的 OpenAI 模型
   const fetchOpenAIModels = async () => {
     try {
-      const modelUrl = llmApiUrl.split('/v1')[0];
-      const response = await fetch(`${modelUrl}/v1/models`, {
+      const [modelUrl] = llmApiUrl.split('/chat');
+      const response = await fetch(`${modelUrl}/models`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${llmApiKey}`,
