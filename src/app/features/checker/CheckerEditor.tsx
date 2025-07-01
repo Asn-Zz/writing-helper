@@ -269,6 +269,28 @@ ${text}
 请直接返回JSON数组：`;
     }, []); // Depends only on hardcoded config
 
+    const findFuzzyMatch = (text: string, pattern: string, offset: number, maxDistance = 2) => {
+        const substring = text.slice(offset);
+        const patternLength = pattern.length;
+        
+        for (let i = 0; i <= substring.length - patternLength; i++) {
+            let distance = 0;
+            for (let j = 0; j < patternLength && distance <= maxDistance; j++) {
+                if (substring[i + j] !== pattern[j]) {
+                    distance++;
+                }
+            }
+            if (distance <= maxDistance) {
+                return {
+                    index: i,
+                    length: patternLength,
+                    distance: distance
+                };
+            }
+        }
+        return null;
+    }
+
     const checkText = useCallback(async () => {
         if (isLoading || !inputText.trim()) return;
 
@@ -294,7 +316,7 @@ ${text}
             const parsedIssues = JSON.parse(data.content);
             if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组。');
             
-            let currentOffset = 0;
+            let currentOffset = Math.max(inputText.indexOf(parsedIssues[0].original), 0);
             const processedIssues: Issue[] = [];
             let issueIdCounter = 0;
             const textToSearch = inputText; // Use the text that was sent
@@ -303,31 +325,23 @@ ${text}
                 if (!item || typeof item.original !== 'string' || typeof item.suggestion === 'undefined' || typeof item.reason !== 'string') {
                     console.warn('跳过格式不完整的建议:', item); return;
                 }
-                // Allow empty original string only if suggestion is not empty (insertion) - Needs careful API design
-                // if (item.original === "" && item.suggestion === "") {
-                //     console.warn('Skipping issue with empty original and suggestion:', item); return;
-                // }
-
-                // Find the *first* occurrence after the last found issue
-                const start = textToSearch.indexOf(item.original, currentOffset);
-
-                if (start !== -1) {
-                    const end = start + item.original.length;
+                
+                const match = findFuzzyMatch(textToSearch, item.original, currentOffset);
+                
+                if (match) {
+                    const start = currentOffset + match.index;
+                    const end = start + match.length;
                     processedIssues.push({
                         ...item,
                         id: issueIdCounter++,
                         start: start,
                         end: end,
-                        fixed: false
+                        fixed: false,
+                        matchDistance: match.distance
                     });
-                    // Advance offset: Start searching for the next issue *after* the start of the current one.
-                    // This helps handle overlapping/repeated original strings better than `currentOffset = end`.
                     currentOffset = start + 1;
                 } else {
                     console.warn(`无法在文本中找到原始片段 (从 ${currentOffset} 开始): "${item.original}"`);
-                    // Try searching from the beginning again as a fallback? Could lead to wrong matches.
-                    // const fallbackStart = textToSearch.indexOf(item.original);
-                    // if (fallbackStart !== -1) { ... }
                 }
             });
 
