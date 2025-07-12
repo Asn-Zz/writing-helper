@@ -1,6 +1,6 @@
 'use client'; // Required for hooks and event handlers
 
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Chart, registerables } from 'chart.js/auto'; // Use auto registration
 import {
     FaRobot, FaBook, FaNewspaper, FaFire, FaList, FaSpinner, FaBolt,
@@ -197,7 +197,8 @@ export default function HomePage() {
     const processBookData = useCallback((rawBooks: any[]): Book[] => {
         if (!Array.isArray(rawBooks)) return [];
         return rawBooks.map((b, index) => {
-            const imgUrl = b.img_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23cccccc' d='M352 0H160C71.6 0 0 71.6 0 160v192c0 88.4 71.6 160 160 160h192c88.4 0 160-71.6 160-160V160C512 71.6 440.4 0 352 0zM160 64h192c17.7 0 32 14.3 32 32s-14.3 32-32 32H160c-17.7 0-32-14.3-32-32s14.3-32 32-32zm192 384H160c-53 0-96-43-96-96V192h384v160c0 53-43 96-96 96z'/%3E%3C/svg%3E";
+            const rawImgUrl = b.img ? 'https://img.rebang.today/' + b.img : '';
+            const imgUrl = rawImgUrl ? '/api/proxy?url=' + encodeURIComponent(rawImgUrl) : b.img_url;
             const starsInfo = generateStars(b.newRating || b.score);
             const readingCount = Number(b.reading_count || b.review_total) || 0;
             return {
@@ -643,24 +644,14 @@ ${JSON.stringify(dataSnippet, null, 2)}
         });
     }, [hotTopics, hotTopicsSortKey, hotTopicsSortOrder]); // Recalculate when these change
 
-
-    // --- Lifecycle Hooks ---
-    // useEffect(() => {
-    //     // Load settings on initial mount
-    //     loadSettings();
-    //     // Optionally fetch initial data for the default mode
-    //     // fetchBookDataAndAnalyze(true); // Fetch books on mount
-    //     // fetchHotTopics(); // Fetch hot topics on mount
-    // }, [loadSettings, fetchHotTopics]); // Add fetchBookDataAndAnalyze if called here
-
     // Effect to render chart when books data changes (and it's the first load)
     // Note: renderChart is now called within fetchBookDataAndAnalyze on first load.
     // This effect might be redundant or could be used for updates if needed.
-    // useEffect(() => {
-    //     if (appMode === 'books' && books.length > 0 && bookPagination.currentPage === 1) {
-    //         renderChart(books);
-    //     }
-    // }, [books, appMode, bookPagination.currentPage, renderChart]);
+    useEffect(() => {
+        if (appMode === 'books' && books.length > 0) {
+            renderChart(books);
+        }
+    }, [books, appMode, renderChart]);
 
 
     // --- Render ---
@@ -861,7 +852,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                             )}
                                         </div>
                                     </div>
-                                    <div className="mt-3 text-gray-700 text-sm book-desc border-t pt-2 border-gray-100">
+                                    <div className="mt-3 text-gray-700 text-sm book-desc border-t pt-2 border-gray-100 line-clamp-4">
                                         {book.desc || '暂无描述'}
                                     </div>
                                 </div>

@@ -1,6 +1,7 @@
 "use client"; // Required for useState, useEffect, event handlers
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import { FaCopy, FaEdit, FaTrash, FaMagic } from 'react-icons/fa'; // Import necessary icons
 import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
 import { generate } from '../../lib/api';
 
@@ -447,10 +448,7 @@ ${generationSettings.description ? '描述：' + generationSettings.description 
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="mr-2 h-5 w-5 fill-current">
-                                        {/* Font Awesome Magic Wand SVG Path */}
-                                        <path d="M91.4 40.6c-8.8-8.8-22.9-8.8-31.7 0l-40 40c-8.8 8.8-8.8 22.9 0 31.7l40 40c8.8 8.8 22.9 8.8 31.7 0l40-40c8.8-8.8 8.8-22.9 0-31.7l-40-40zM23.9 111.4l40-40 40 40-40 40-40-40zm100.6 100.6c-8.8-8.8-22.9-8.8-31.7 0l-40 40c-8.8 8.8-8.8 22.9 0 31.7l40 40c8.8 8.8 22.9 8.8 31.7 0l40-40c8.8-8.8 8.8-22.9 0-31.7l-40-40zM67.9 255.4l40-40 40 40-40 40-40-40zm100.6 100.6c-8.8-8.8-22.9-8.8-31.7 0l-40 40c-8.8 8.8-8.8 22.9 0 31.7l40 40c8.8 8.8 22.9 8.8 31.7 0l40-40c8.8-8.8 8.8-22.9 0-31.7l-40-40zM111.9 399.4l40-40 40 40-40 40-40-40zM469.7 9.9c-3.8-8.4-12.1-13.4-21.1-13.4H360.8c-10.6 0-19.2 8.6-19.2 19.2V93.9c0 8.1 5 15.3 12.5 18.1l-184 184c-12.5 12.5-12.5 32.8 0 45.3l48 48c12.5 12.5 32.8 12.5 45.3 0l184-184c2.8 7.5 10 12.5 18.1 12.5h88.2c10.6 0 19.2-8.6 19.2-19.2V48.8c0-9-5-17.3-13.4-21.1l-17.8-8.8zM380 128H312V60h68v68zm108.8 26.4L464 142.6l-45.3 45.3-21.2-21.2 45.3-45.3-11.8-11.8-45.3 45.3-21.2-21.2 45.3-45.3H380V60h28.8l45.3 45.3 21.2-21.2-45.3-45.3 11.8-11.8 45.3 45.3 21.2-21.2L488.8 28l19.2 9.6v76.8h-28.8l-45.3-45.3-21.2 21.2 45.3 45.3z"/>
-                                    </svg>
+                                   <FaMagic className="mr-2" />
                                 )}
                                 {isLoading ? '生成中...' : '生成评论'}
                             </button>
@@ -530,25 +528,16 @@ ${generationSettings.description ? '描述：' + generationSettings.description 
                                         ) : (
                                             <>
                                                 <button onClick={() => copyComment(comment)} className="btn btn-sm text-xs text-indigo-600 hover:text-indigo-800 px-1 py-1 rounded inline-flex items-center" title="复制">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="h-3 w-3 fill-current">
-                                                        {/* Font Awesome Copy SVG Path */}
-                                                        <path d="M384 336H192c-8.8 0-16-7.2-16-16V64c0-8.8 7.2-16 16-16l140.1 0L400 115.9V320c0 8.8-7.2 16-16 16zM192 384H38.6C17.3 384 0 366.7 0 345.4V128c0-8.8 7.2-16 16-16h16c8.8 0 16 7.2 16 16v192h112c8.8 0 16 7.2 16 16v16c0 8.8-7.2 16-16 16zM448 115.9L336.1 4.1C327.7-4.3 315.1 0 312 8.8V96c0 8.8 7.2 16 16 16h87.2c8.8 0 13.1-10.8 8.8-19.2z"/>
-                                                    </svg>
-                                                    {/* <span className="ml-1">复制</span> */}
+                                                    <FaCopy />
+                                                    <span className="ml-1">复制</span>
                                                 </button>
                                                 <button onClick={() => editComment(comment.id)} className="btn btn-sm text-xs text-blue-600 hover:text-blue-800 px-1 py-1 rounded inline-flex items-center" title="编辑">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="h-3 w-3 fill-current">
-                                                        {/* Font Awesome Edit/Pencil SVG Path */}
-                                                        <path d="M421.7 220.3L188.5 453.4L3.1 491.1C-4.4 493.6-10.4 489.6-10.6 481.8L2.9 326.5L236.1 93.4c12.5-12.5 32.8-12.5 45.3 0l140.3 140.3c12.5 12.5 12.5 32.8 0 45.3zM460.9 107.7l-9.4 9.4c-12.5 12.5-32.8 12.5-45.3 0l-140.3-140.3c-12.5-12.5-12.5-32.8 0-45.3l9.4-9.4c12.5-12.5 32.8-12.5 45.3 0l140.3 140.3c12.5 12.5 12.5 32.8 0 45.3z"/>
-                                                    </svg>
-                                                     {/* <span className="ml-1">编辑</span> */}
+                                                    <FaEdit />
+                                                    <span className="ml-1">编辑</span>
                                                 </button>
                                                 <button onClick={() => deleteComment(comment.id, comment.title)} className="btn btn-sm text-xs text-red-600 hover:text-red-800 px-1 py-1 rounded inline-flex items-center" title="删除">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="h-3 w-3 fill-current">
-                                                        {/* Font Awesome Trash SVG Path */}
-                                                        <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
-                                                    </svg>
-                                                     {/* <span className="ml-1">删除</span> */}
+                                                    <FaTrash />
+                                                    <span className="ml-1">删除</span>
                                                 </button>
                                             </>
                                         )}

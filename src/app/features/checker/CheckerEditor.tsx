@@ -3,7 +3,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
     FaPenFancy, FaCopy, FaSearch, FaTrashAlt, FaLightbulb, FaCheck, FaTimes,
-    FaFileUpload, FaFileAlt, FaCloudUploadAlt, FaSpellCheck, FaVolumeUp, FaImage,
+    FaFileAlt, FaCloudUploadAlt, FaVolumeUp, FaImage, FaCompressArrowsAlt,
     FaPlay, FaDownload, FaExclamationCircle, FaMagic, FaListUl, FaCheckCircle,
     FaArrowRight, FaCamera, FaInfoCircle, FaPaintBrush
 } from 'react-icons/fa'; // Import necessary icons
@@ -34,34 +34,44 @@ interface Voice {
     name: string;
 }
 
-// Hardcoded API Config (Replace with Environment Variables in production)
-const API_CONFIG = {
-    // Proofreading
-    apiUrl: 'https://asnlee-proxy.hf.space/deepseek/v1/chat/completions',
-    apiKey: 'asnlee', // WARNING: Hardcoding keys is insecure
-    model: 'DeepSeek-v3-Full-Context',
-    intensity: 'strict', // 'gentle', 'moderate', 'strict'
-    customPrompt: '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。',
-    // TTS
-    ttsApiUrl: 'https://asnlee-silicon.hf.space/v1/audio/speech',
-    ttsApiKey: 'asnlee', // WARNING: Hardcoding keys is insecure
-    ttsModel: 'FunAudioLLM/CosyVoice2-0.5B',
-    // Image Generation
-    imageApiUrl: 'https://asnlee-poll.hf.space/v1/images/generations',
-    imageApiKey: 'asnlee', // WARNING: Hardcoding keys is insecure
-    imageModel: 'flux',
-};
+// API Models and Prompts
+const PROOFREADING_MODEL = 'deepseek-v3';
+const PROOFREADING_PROMPT = '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。';
+const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+const IMAGE_MODEL = 'flux';
 
 // Hardcoded available voices (as config panel is removed)
 const availableVoices: Voice[] = [
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:alex', name: '沉稳男声:alex' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:benjamin', name: '低沉男声:benjamin' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:charles', name: '磁性男声:charles' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:david', name: '欢快男声:david' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:anna', name: '沉稳女声:anna' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:bella', name: '激情女声:bella' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:claire', name: '温柔女声:claire' },
-    { id: 'FunAudioLLM/CosyVoice2-0.5B:diana', name: '欢快女声:diana' },
+    { id: 'Zephyr', name: '明亮' },
+    { id: 'Puck', name: '欢快' },
+    { id: 'Charon', name: '信息丰富' },
+    { id: 'Kore', name: '坚定' },
+    { id: 'Fenrir', name: '易激动' },
+    { id: 'Leda', name: '年轻' },
+    { id: 'Orus', name: '坚定' },
+    { id: 'Aoede', name: '轻松' },
+    { id: 'Callirhoe', name: '随和' },
+    { id: 'Autonoe', name: '明亮' },
+    { id: 'Enceladus', name: '呼吸感' },
+    { id: 'Iapetus', name: '清晰' },
+    { id: 'Umbriel', name: '随和' },
+    { id: 'Algieba', name: '平滑' },
+    { id: 'Despina', name: '平滑' },
+    { id: 'Erinome', name: '清晰' },
+    { id: 'Algenib', name: '沙哑' },
+    { id: 'Rasalgethi', name: '信息丰富' },
+    { id: 'Laomedeia', name: '欢快' },
+    { id: 'Achernar', name: '轻柔' },
+    { id: 'Alnilam', name: '坚定' },
+    { id: 'Schedar', name: '平稳' },
+    { id: 'Gacrux', name: '成熟' },
+    { id: 'Pulcherrima', name: '向前' },
+    { id: 'Achird', name: '友好' },
+    { id: 'Zubenelgenubi', name: '休闲' },
+    { id: 'Vindemiatrix', name: '温柔' },
+    { id: 'Sadachbia', name: '活泼' },
+    { id: 'Sadaltager', name: '博学' },
+    { id: 'Sulafat', name: '温暖' }
 ];
 
 export default function CheckerEditor() {
@@ -90,7 +100,7 @@ export default function CheckerEditor() {
     const [ttsLoading, setTtsLoading] = useState(false);
     const [ttsError, setTtsError] = useState<string | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const [selectedVoice, setSelectedVoice] = useState<string>(availableVoices[0]?.id || ''); // Default to first voice
+    const [selectedVoice, setSelectedVoice] = useState<string>(''); // Default to first voice
 
     // Image Generation State
     const [imageGenLoading, setImageGenLoading] = useState(false);
@@ -159,6 +169,14 @@ export default function CheckerEditor() {
                 console.error('Copy failed:', err);
                 alert('复制失败');
             });
+    }, [inputText]);
+
+    const compressText = useCallback(() => {
+        if (!inputText.trim()) return;
+        // Replace two or more newlines with a single newline.
+        // This helps clean up text pasted from sources with excessive spacing.
+        const compressed = inputText.replace(/(\r\n|\r|\n){2,}/g, '\n');
+        setInputText(compressed);
     }, [inputText]);
 
     const clearInput = useCallback(() => {
@@ -248,10 +266,7 @@ export default function CheckerEditor() {
 
     // Proofreading Methods
     const createPrompt = useCallback((text: string): string => {
-        let strictness = "";
-        if (API_CONFIG.intensity === "gentle") strictness = "只修正明显的拼写错误和语法错误。";
-        else if (API_CONFIG.intensity === "moderate") strictness = "修正拼写、语法错误，优化不通顺的句子。";
-        else strictness = "严格检查所有可能的错误，包括拼写、语法、用词不当，并进行优化。";
+        const strictness = "严格检查所有可能的错误，包括拼写、语法、用词不当，并进行优化。";
 
         return `请分析以下文字片段，找出其中的语法错误、拼写错误、用词不当等问题，并提供修改建议。${strictness}
 要求返回一个JSON数组，每个元素包含以下字段：
@@ -284,8 +299,9 @@ ${text}
             const prompt = createPrompt(inputText);
             const data = await generate({
               ...apiConfig,
+              model: apiConfig.model || PROOFREADING_MODEL,
               messages: [
-                { role: "system", content: API_CONFIG.customPrompt },
+                { role: "system", content: PROOFREADING_PROMPT },
                 { role: "user", content: prompt }
               ],
               temperature: 0.1,
@@ -401,8 +417,8 @@ ${text}
     // --- TTS Methods ---
     const generateTTS = useCallback(async () => {
         if (ttsLoading || !inputText.trim() || !selectedVoice) return;
-        if (!API_CONFIG.ttsApiKey || !API_CONFIG.ttsApiUrl) {
-            setTtsError('TTS API URL 或 Key 未配置 (硬编码)。');
+        if (!apiConfig.apiKey || !apiConfig.apiUrl) {
+            setTtsError('请先在上方设置 API URL 和 Key。');
             return;
         }
 
@@ -416,16 +432,17 @@ ${text}
         }
 
         try {
-            const response = await fetch(API_CONFIG.ttsApiUrl, {
+            const ttsUrl = apiConfig.apiUrl.replace(/chat\/completions$/, 'audio/speech');
+            const response = await fetch(ttsUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${API_CONFIG.ttsApiKey}`,
+                    'Authorization': `Bearer ${apiConfig.apiKey}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     input: inputText,
                     voice: selectedVoice,
-                    model: API_CONFIG.ttsModel || undefined,
+                    model: TTS_MODEL,
                     response_format: 'mp3' // Or other format supported by API
                 }),
             });
@@ -454,13 +471,13 @@ ${text}
         } finally {
             setTtsLoading(false);
         }
-    }, [ttsLoading, inputText, selectedVoice, audioUrl]); // Include audioUrl to revoke previous
+    }, [ttsLoading, inputText, selectedVoice, audioUrl, apiConfig]); // Include audioUrl to revoke previous
 
     // --- Image Generation Methods ---
     const generateCoverImage = useCallback(async () => {
         if (imageGenLoading || !inputText.trim()) return;
-        if (!API_CONFIG.imageApiKey || !API_CONFIG.imageApiUrl) {
-            setImageGenError('图像生成 API URL 或 Key 未配置 (硬编码)。');
+        if (!apiConfig.apiKey || !apiConfig.apiUrl) {
+            setImageGenError('图像生成 API URL 或 Key 未配置。');
             return;
         }
 
@@ -472,16 +489,17 @@ ${text}
             // Create a prompt for the image API
             const textSnippet = inputText.substring(0, 80); // Use a slightly longer snippet
             const imagePrompt = `为一篇关于 "${textSnippet}..." 的文章生成一个吸引人的封面插图，风格现代、简洁、色彩明亮。`;
+            const imageUrl = apiConfig.apiUrl.replace(/chat\/completions$/, 'images/generations');
 
-            const response = await fetch(API_CONFIG.imageApiUrl, {
+            const response = await fetch(imageUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${API_CONFIG.imageApiKey}`,
+                    'Authorization': `Bearer ${apiConfig.apiKey}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     prompt: imagePrompt,
-                    model: API_CONFIG.imageModel || 'dall-e-3', // Default or configured model
+                    model: IMAGE_MODEL,
                     n: 1,
                     size: "1024x1024",
                     response_format: "b64_json", // Request base64
@@ -517,7 +535,7 @@ ${text}
         } finally {
             setImageGenLoading(false);
         }
-    }, [imageGenLoading, inputText]);
+    }, [imageGenLoading, inputText, apiConfig]);
 
     // --- Lifecycle Hooks ---
     // Cleanup blob URL on unmount
@@ -627,7 +645,7 @@ ${text}
                         <button
                             onClick={checkText}
                             disabled={isLoading || !inputText.trim()}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <span className="loading-spinner mr-2 border-top-color-white"></span>
@@ -637,20 +655,26 @@ ${text}
                             {isLoading ? '校对中...' : '开始校对'}
                         </button>
                     </div>
-                    <div>
-                        <button
-                            onClick={clearInput}
-                            className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg transition mr-2"
-                        >
-                            <FaTrashAlt className="mr-1 inline-block" /> 清空
-                        </button>
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={loadExample}
-                            className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg transition mr-2"
+                            className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
                         >
-                            <FaLightbulb className="mr-1 inline-block" /> 示例
+                            <FaLightbulb className="mr-1" /> 示例
                         </button>
-                        {/* Config button removed */}
+                        <button
+                            onClick={clearInput}
+                            className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
+                        >
+                            <FaTrashAlt className="mr-1" /> 清空
+                        </button>
+                        <button
+                            onClick={compressText}
+                            className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
+                            title="移除多余的换行符"
+                        >
+                            <FaCompressArrowsAlt className="mr-1" /> 压缩
+                        </button>
                     </div>
                 </div>
             </div>
@@ -821,10 +845,9 @@ ${text}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* TTS Section */}
                         <div>
-                            <h3 className="text-lg font-medium mb-3 text-gray-800 flex items-center"><FaVolumeUp className="mr-2 text-green-500" />文本转语音 (TTS)</h3>
+                            <h3 className="text-lg font-medium mb-3 text-gray-800 flex items-center"><FaVolumeUp className="mr-2 text-green-500" />文本转语音</h3>
                             <div className="space-y-3">
                                 <div>
-                                    <label htmlFor="voiceSelect" className="block text-sm font-medium text-gray-700 mb-1">选择音色</label>
                                     <select
                                         id="voiceSelect"
                                         value={selectedVoice}
@@ -917,7 +940,7 @@ ${text}
                     <p className="mb-3">本工具集成了文章校对、文本转语音 (TTS) 和封面图生成功能，旨在帮助内容创作者提高效率。</p>
                     <ul className="list-disc pl-5 mb-4 space-y-1">
                         <li><strong>校对:</strong> 检查错别字、语法、标点等，提供修改建议。</li>
-                        <li><strong>TTS:</strong> 将校对后的文本转换为语音，支持选择不同音色。</li>
+                        <li><strong>文本转语音:</strong> 将校对后的文本转换为语音，支持选择不同音色。</li>
                         <li><strong>封面图:</strong> 根据文章内容（或摘要）生成匹配的封面图片。</li>
                     </ul>
                     {/* <p className="text-xs text-gray-500 mb-0">API配置已在此版本中移除。功能依赖于预设的API端点。请确保遵守各API服务提供商的使用条款。</p> */}
