@@ -79,6 +79,8 @@ export default function ApiSettingsBlock({
         if (models.length > 0 && !models.includes(model)) {
           setModel(models[0]);
         }
+
+        return models
       }
     } catch (error) {
       console.error('获取模型列表失败:', error);
@@ -132,6 +134,7 @@ export default function ApiSettingsBlock({
       model={model}
       setModel={setModel}
       availableModels={availableModels}
+      setAvailableModels={setAvailableModels}
       fetchModels={isOllama ? fetchOllamaModels : fetchOpenAIModels}
     />
   </>

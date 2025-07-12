@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   API_HELP,
   API_URLS,
@@ -27,12 +27,12 @@ export interface ApiSettingsProps {
   setApiProvider: (apiProvider: ApiProvider) => void;
   apiUrl: string;
   setApiUrl: (apiUrl: string) => void;
-  apiKey: string;  // 注意：对于 Ollama，此值可以为空字符串
+  apiKey: string;
   setApiKey: (apiKey: string) => void;
   model: string;
   setModel: (model: string) => void;
-  // 仅在使用 Ollama 时需要
   availableModels?: string[];
+  setAvailableModels?: (models: string[]) => void;
   fetchModels?: () => Promise<string[] | void>;
 }
 
@@ -49,88 +49,126 @@ export default function ApiSettings({
   model,
   setModel,
   availableModels = [],
+  setAvailableModels,
   fetchModels
 }: ApiSettingsProps) {
-  // 添加保存状态指示器
   const storeKey = 'writing_helper_api_config';
   const [settingConfig, setSettingConfig, saveStatus] = useLocalStorage(storeKey, DEFAULT_LLM);
+  const [cachedProviderModels, setCachedProviderModels] = useLocalStorage<Record<string, string[]>>('provider_models_cache', {});
+  const [isCustomModelInput, setIsCustomModelInput] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // 存储配置到 localStorage
+  useEffect(() => {
+    const currentCached = cachedProviderModels[apiProvider] || [];    
+
+    setIsMounted(true);
+    
+    if (currentCached.length && setAvailableModels) {      
+      setAvailableModels(currentCached);
+    }
+  }, []);
+
+  const displayedModels = useMemo(() => {
+    if (!isMounted) { return availableModels }
+
+    return cachedProviderModels[apiProvider] || availableModels;
+  }, [isMounted, apiProvider, availableModels, cachedProviderModels]);
+
+  const effectiveIsCustom = useMemo(() => {
+    if (isCustomModelInput) return true;
+    if (displayedModels.length > 0 && model && !displayedModels.includes(model)) {
+      return true;
+    }
+    return false;
+  }, [model, displayedModels, isCustomModelInput]);
+
+  const fetchLocalModel = () => {
+    if (fetchModels) {
+      fetchModels().then(models => {
+        setCachedProviderModels({ ...cachedProviderModels, [apiProvider]: models || [] });
+      }).catch(err => {
+        console.error('刷新模型列表失败:', err);
+      });
+    }
+  }
+
   const saveApiConfig = () => {
     try {
       const apiConfig = {
         apiProvider: apiProvider,
         apiUrl: apiUrl,
-        apiKey: apiKey, // 注意：这里存储了API密钥，生产环境可能需要更安全的方式
+        apiKey: apiKey,
         model: model
       };
       setSettingConfig(apiConfig);
-      loadApiConfig(apiConfig);
+      if (setApiConfig) {
+        setApiConfig(apiConfig);
+      }
     } catch (error) {
       console.error('保存API配置失败:', error);
     }
   };
 
-  // 从 localStorage 加载配置
-  const loadApiConfig = (config = DEFAULT_LLM) => {
+  const loadApiConfig = (config: ApiConfigProps) => {
     if (setApiConfig) {
       console.log('已从本地存储加载API配置');
       setApiConfig(config)
     }
   };
 
-  // 清除所有API配置
   const clearApiConfig = () => {
     try {
-      // 重置为默认值
       setSettingConfig(DEFAULT_LLM);
       loadApiConfig(DEFAULT_LLM);
-
+      setCachedProviderModels({});
       console.log('API配置已重置');
     } catch (error) {
       console.error('清除API配置失败:', error);
     }
   };
 
-  // 组件挂载时加载配置
   useEffect(() => {
     loadApiConfig(settingConfig);
-  }, []);
+  }, []); // This useEffect is safe, it only runs once on mount.
 
   const handleApiProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const apiProvider = e.target.value as ApiProvider;
+    const newApiProvider = e.target.value as ApiProvider;
+    setApiProvider(newApiProvider);
 
-    // 更新状态前先准备好新的 URL 和模型
-    const newUrl = API_URLS[apiProvider];
+    setApiUrl(API_URLS[newApiProvider]);
 
-    // 先更新提供商
-    setApiProvider(apiProvider);
-
-    // 设置默认 URL
-    setApiUrl(newUrl);
-
-    // 设置默认模型名称
-    if (apiProvider === PROVIDER_KEY.openai) {
+    if (newApiProvider === PROVIDER_KEY.openai) {
       setModel(DEFAULT_LLM.model);
       setApiKey(DEFAULT_LLM.apiKey);
-    } else if (apiProvider === PROVIDER_KEY.ollama) {
-      // 对于 Ollama，尝试获取可用模型
-      setModel(DEFAULT_OLLAMA_LLM.model); // 设置默认值，即使没有获取到模型列表也能有默认值
+    } else if (newApiProvider === PROVIDER_KEY.ollama) {
+      setModel(DEFAULT_OLLAMA_LLM.model);
       setApiKey(DEFAULT_OLLAMA_LLM.apiKey);
-      if (fetchModels) {
-        // 异步获取模型列表
-        fetchModels().catch(err => {
-          console.error('获取 Ollama 模型列表失败:', err);
-          // 出错时不显示错误提示，仍保留默认值，避免干扰用户
-          // 用户可以手动点击"刷新模型列表"按钮重试
-        });
-      }
-    } else if (apiProvider === PROVIDER_KEY.custom) {
+    } else if (newApiProvider === PROVIDER_KEY.custom) {
       setModel('');
       setApiKey('');
       setApiUrl('');
     }
-    // 自定义提供商不设置默认模型
+
+    const providersWithFetch = [PROVIDER_KEY.ollama, PROVIDER_KEY.openai];
+    if (providersWithFetch.includes(newApiProvider) && fetchModels) {
+      const cached = cachedProviderModels[newApiProvider] || [];
+      if (cached.length === 0) {
+        fetchModels().catch(err => {
+          console.error(`获取 ${newApiProvider} 模型列表失败:`, err);
+        });
+      }
+    }
+  };
+
+  const handleModelSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    if (selectedValue === '__custom__') {
+      setIsCustomModelInput(true);
+      setModel('');
+    } else {
+      setIsCustomModelInput(false);
+      setModel(selectedValue);
+    }
   };
 
   const storeAuthKey = 'writing_helper_auth_token';
@@ -140,7 +178,6 @@ export default function ApiSettings({
     if (password === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
       localStorage.setItem(storeAuthKey, process.env.NEXT_PUBLIC_AUTH_TOKEN);
       setSettingConfig(DEFAULT_ADMIN_LLM)
-
       loadApiConfig(DEFAULT_ADMIN_LLM)
       console.log('认证成功');
     }
@@ -242,50 +279,30 @@ export default function ApiSettings({
 
             <div>
               <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
-                模型: <span className="text-xs text-green-600 mr-2">{availableModels.length} 可用</span> 
+                模型
+                {displayedModels.length > 0 && (
+                  <span className="text-xs text-green-600 ml-2">{displayedModels.length} 可用</span>
+                )}
               </label>
-              {availableModels && availableModels.length > 0 ? (
+              {displayedModels.length > 0 ? (
                 <div className="space-y-2">
                   <div className='flex items-center'>
                     <select
                       id="model"
-                      value={model}
-                      onChange={(e) => setModel(e.target.value)}
+                      value={effectiveIsCustom ? '__custom__' : model}
+                      onChange={handleModelSelectChange}
                       className="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     >
-                      {availableModels.map(m => (
+                      {displayedModels.map(m => (
                         <option key={m} value={m}>{m}</option>
                       ))}
+                      <option value="__custom__">自定义...</option>
                     </select>
 
                     {fetchModels && (
                       <button
                         type="button"
-                        onClick={() => {
-                          try {
-                            console.log('开始获取 Ollama 模型列表...');
-                            fetchModels()
-                              .then((models) => {
-                                console.log('获取 Ollama 模型成功，可用模型数量:', Array.isArray(models) ? models.length : availableModels.length);
-                                // 强制刷新组件
-                                if (availableModels.length > 0) {
-                                  const modelInput = document.getElementById('model');
-                                  if (modelInput) {
-                                    // 触发一个小动画以便用户知道列表已刷新
-                                    modelInput.classList.add('pulse-animation');
-                                    setTimeout(() => {
-                                      modelInput.classList.remove('pulse-animation');
-                                    }, 1000);
-                                  }
-                                }
-                              })
-                              .catch(err => {
-                                console.error('刷新模型列表失败:', err);
-                              });
-                          } catch (error) {
-                            console.error('刷新模型列表失败:', error);
-                          }
-                        }}
+                        onClick={fetchLocalModel}
                         className="ml-2 inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -295,20 +312,34 @@ export default function ApiSettings({
                       </button>
                     )}
                   </div>
+                  {effectiveIsCustom && (
+                    <input
+                      type="text"
+                      id="custom_model_input"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="block w-full px-3 py-2 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="输入自定义模型名称"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
                   <input
                     type="text"
-                    id="model"
+                    id="model_input"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder={apiProvider === 'ollama' ? '加载模型列表中或手动输入模型名称...' : '输入模型名称'}
+                    placeholder={
+                      ['openai', 'ollama'].includes(apiProvider)
+                        ? '加载模型列表中或手动输入...'
+                        : '输入模型名称'
+                    }
                   />
                   {apiProvider === 'ollama' && (
                     <div className="text-xs text-gray-500">
-                      {availableModels.length === 0 ? '未找到模型，请确保 Ollama 正在运行并已安装模型' : ''}
+                      未找到模型，请确保 Ollama 正在运行并已安装模型。
                     </div>
                   )}
                 </div>

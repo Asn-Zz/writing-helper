@@ -311,7 +311,7 @@ export default function NewMediaEditorPage() {
 
         const data = await generate({
           ...apiConfig,
-          model: 'Qwen2.5-VL-72B-Instruct',
+          model: 'qwen2.5-vl-72b',
           messages: [{
             role: 'user',
             content: [
