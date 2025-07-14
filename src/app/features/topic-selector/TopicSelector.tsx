@@ -6,7 +6,7 @@ import {
     FaRobot, FaBook, FaNewspaper, FaFire, FaList, FaSpinner, FaBolt,
     FaChartBar, FaUser, FaBookOpenReader,FaArrowUpRightFromSquare,
     FaTrophy, FaLightbulb, FaUsers, FaArrowUpShortWide,
-    FaArrowDownWideShort, FaTag, FaRegClock
+    FaArrowDownWideShort, FaTag, FaRegClock, FaRotate, FaRotateRight
 } from 'react-icons/fa6'; // Using react-icons (Font Awesome 6)
 import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
 import { generate } from '../../lib/api';
@@ -732,7 +732,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                 {/* AI Analysis */}
                                 <div className="bg-white rounded-xl shadow p-6 mb-6 print-shadow-none print-bg-white">
                                     <h2 className="text-xl font-semibold text-green-600 mb-4 flex items-center">
-                                        <FaRobot className="mr-2" /> AI分析与选题建议
+                                        <FaRobot className="mr-2" /> AI分析与选题建议 {aiAnalysis && <FaRotate className='ml-3' onClick={startBookAnalyzeWithOpenAIHandler} />}
                                         {isAiAnalyzing && (
                                             <span className="ml-3 text-sm text-gray-500">
                                                 <FaSpinner className="animate-spin inline mr-1" /> 正在生成...
@@ -814,7 +814,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                         disabled={isLoading}
                                         className="bg-blue-500 flex items-center justify-center px-5 py-2 rounded-lg text-white font-semibold hover:bg-blue-600 shadow transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
                                     >
-                                        {isLoading && bookPagination.currentPage > 1 ? <FaSpinner className="animate-spin mr-2" /> : <FaRobot className="mr-2" />}
+                                        {isLoading && bookPagination.currentPage > 1 ? <FaSpinner className="animate-spin mr-2" /> : <FaRotateRight className="mr-2" />}
                                         {isLoading && bookPagination.currentPage > 1 ? '加载中...' : `下一批(${bookPagination.endPage + 1}-${bookPagination.endPage + bookPagination.pageSize})`}
                                     </button>
                                 </div>
@@ -947,7 +947,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                     disabled={isHotTopicsLoading}
                                     className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded hover:bg-purple-200 disabled:opacity-50"
                                 >
-                                    {isHotTopicsLoading ? <FaSpinner className="animate-spin inline mr-1" /> : <FaRobot className="inline mr-1" />}
+                                    {isHotTopicsLoading ? <FaSpinner className="animate-spin inline mr-1" /> : <FaRotate className="inline mr-1" />}
                                     刷新话题
                                 </button>
                             </div>
