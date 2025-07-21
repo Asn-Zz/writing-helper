@@ -9,7 +9,6 @@ import {
 } from 'react-icons/fa'; // Import necessary icons
 import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
 import { generate } from '../../lib/api';
-import mammoth from 'mammoth'; // Import mammoth for DOCX
 import './style.css';
 
 // Define interfaces for better type safety
@@ -37,7 +36,7 @@ interface Voice {
 // API Models and Prompts
 const PROOFREADING_MODEL = 'deepseek-v3';
 const PROOFREADING_PROMPT = '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。';
-const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+const TTS_MODEL = 'gemini-2.5-flash-tts';
 const IMAGE_MODEL = 'flux';
 
 // Hardcoded available voices (as config panel is removed)
@@ -208,40 +207,41 @@ export default function CheckerEditor() {
         fileInputRef.current?.click();
     }, []);
 
+    const removeUploadedFile = useCallback(() => {
+        setUploadedFileName(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''; // Clear the actual file input
+        }
+        // Optionally clear text area if it was filled by upload
+        // setInputText('');
+    }, []);
+
     const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
-        const validExtensions = ['.txt', '.md', '.markdown', '.doc', '.docx', '.rtf', '.text'];
-        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-
-        if (!validExtensions.includes(fileExt)) {
-            alert('请上传支持的文本文件格式 (TXT, DOC, DOCX, MD等)');
-            setUploadedFileName(null);
-            if (fileInputRef.current) fileInputRef.current.value = ''; // Clear the actual input
-            return;
-        }
 
         setUploadedFileName(file.name);
         setIsProcessingFile(true);
         setApiError(null);
         setInputText(''); // Clear text area while processing
 
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('apiConfig', JSON.stringify(apiConfig));
+
         try {
-            if (['.txt', '.md', '.markdown', '.text', '.rtf'].includes(fileExt)) { // Basic RTF handling as text
-                const text = await file.text();
-                setInputText(text);
-            } else if (['.doc', '.docx'].includes(fileExt)) {
-                if (typeof mammoth === 'undefined') {
-                    throw new Error('Mammoth library not loaded. Cannot process DOCX files.');
-                }
-                const arrayBuffer = await file.arrayBuffer();
-                const result = await mammoth.extractRawText({ arrayBuffer });
-                setInputText(result.value);
-            } else {
-                setInputText(`(无法预览 ${fileExt} 文件内容，请使用 TXT, MD, DOCX)`);
-                throw new Error(`Unsupported file type for direct reading: ${fileExt}`);
+            const response = await fetch('/api/file-upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'File upload failed');
             }
+
+            const data = await response.json();
+            setInputText(data.text);
         } catch (error: any) {
             console.error('File processing error:', error);
             setApiError(`文件处理失败: ${error.message || '无法读取文件内容'}`);
@@ -252,17 +252,7 @@ export default function CheckerEditor() {
             // Reset the input value so the same file can be selected again
              if (fileInputRef.current) fileInputRef.current.value = '';
         }
-    }, []); // Add removeUploadedFile if needed
-
-    const removeUploadedFile = useCallback(() => {
-        setUploadedFileName(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = ''; // Clear the actual file input
-        }
-        // Optionally clear text area if it was filled by upload
-        // setInputText('');
-    }, []);
-
+    }, [removeUploadedFile, apiConfig]);
 
     // Proofreading Methods
     const createPrompt = useCallback((text: string): string => {
@@ -598,14 +588,14 @@ ${text}
                             id="fileUploadInput"
                             ref={fileInputRef}
                             onChange={handleFileUpload}
-                            accept=".txt,.doc,.docx,.md,.markdown,.rtf,.text"
+                            accept="*"
                             className="hidden"
                         />
                         {!uploadedFileName && !isProcessingFile && (
                             <div className="text-gray-500 w-full">
                                 <FaCloudUploadAlt className="text-2xl mb-2 mx-auto" />
                                 <p>点击或拖拽文件到此处</p>
-                                <p className="text-xs mt-1">支持TXT, DOC, DOCX, MD等</p>
+                                <p className="text-xs mt-1">支持 TXT, DOCX, MD, PNG, JPG, MP3, PDF 等</p>
                             </div>
                         )}
                         {uploadedFileName && !isProcessingFile && (

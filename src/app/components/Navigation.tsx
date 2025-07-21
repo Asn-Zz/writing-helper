@@ -21,6 +21,7 @@ export const featureLinks: NavLink[] = [
   { href: '/features/checker', label: '文章校对' },
   { href: '/features/media-editor', label: '新媒体编辑' },
   { href: '/features/comment-editor', label: '评论编辑' },
+  { href: 'https://qa.codepoem.top', label: '知识库' },
   { 
     href: '#text', 
     label: '文本工具', 
