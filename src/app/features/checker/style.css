@@ -66,3 +66,24 @@ audio {
     margin-top: 10px;
     border: 1px solid #eee;
 }
+
+.pdf-multipage-container {
+    max-height: 800px; /* Or any other height */
+}
+
+.pdf-page-wrapper {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.pdf-page-wrapper:hover {
+    border-color: #93c5fd; /* Tailwind blue-300 */
+}
+
+.pdf-page-wrapper.selected {
+    border-color: #3b82f6; /* Tailwind blue-500 */
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
