@@ -6,6 +6,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { FaFilePdf, FaSpinner, FaSearchPlus, FaColumns } from 'react-icons/fa';
 import { ApiConfigProps } from '@/app/components/ApiSettingBlock';
+import { generateOcr } from '@/app/lib/api'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -61,17 +62,9 @@ export default function PdfViewer({
             if (!imageBlob) throw new Error(`Could not create image from canvas for page ${pageNumber}.`);
 
             const ocrFile = new File([imageBlob], `page_${pageNumber}.png`, { type: 'image/png' });
-            const formData = new FormData();
-            formData.append('file', ocrFile);
-            formData.append('apiConfig', JSON.stringify(apiConfig));
+            const { text } = await generateOcr({ file: ocrFile, ...apiConfig });
 
-            const response = await fetch('/api/file-ocr', { method: 'POST', body: formData });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Page ${pageNumber}: ${errorData.error || 'OCR failed'}`);
-            }
-            const data = await response.json();
-            setInputText(prev => prev + (prev ? '\n\n' : '') + `--- Page ${pageNumber} ---\n` + data.text);
+            setInputText(prev => prev + (prev ? '\n\n' : '') + `--- Page ${pageNumber} ---\n` + text);
             setSelectedPage(null); // Deselect after successful OCR
         } catch (error: any) {
             setOcrError(error.message);

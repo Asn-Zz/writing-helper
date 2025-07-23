@@ -1,7 +1,7 @@
 "use client";
 
 import { generateDiffMarkup } from "./utils";
-import { GenerateRequest, WritingRequest, ApiResponse, PromptStyle, PolishRequest, PolishResponse } from './types';
+import { GenerateRequest, WritingRequest, ApiResponse, PromptStyle, PolishRequest, PolishResponse, OcrRequest, OcrResponse } from './types';
 
 export * from './utils';
 
@@ -33,25 +33,13 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       };
     }
     
-    // Prepare headers based on API provider
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    // Add appropriate authorization header if not Ollama
-    if (!isOllamaApi) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-
-    console.log('准备发送请求到:', apiUrl);
-    console.log('请求头:', JSON.stringify(headers, null, 2).replace(apiKey, '[REDACTED]'));
-    console.log('请求体:', JSON.stringify(requestBody, null, 2));
-    
-    // 使用本地 API 代理来避免 CORS 问题
     try {
       const proxyResponse = await fetch(apiUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify(requestBody)
       });
       
@@ -60,11 +48,9 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         throw new Error(errorData.error?.message || `代理服务错误: ${proxyResponse.status}: ${proxyResponse.statusText}`);
       }
       
-      const data = await proxyResponse.json();
-      console.log('API 响应:', data);
-      
+      const data = await proxyResponse.json();      
       // 保存原始响应用于调试
-      console.log('原始 API 响应:', JSON.stringify(data, null, 2));
+      // console.log('原始 API 响应:', JSON.stringify(data, null, 2));
       
       // 以与测试页面相同的方式尝试不同方法提取内容
       let content = '';
@@ -73,7 +59,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         // 标准格式
         content = data.choices[0].message.content;
         content = content.replace(/```json\s*|```/g, '').trim();
-        console.log('从 choices[0].message.content 提取内容');
+        console.log('提取内容:', content);
       } else if (data.error) {
         // 有明确的错误信息
         throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
@@ -84,7 +70,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       
       return { content };
     } catch (proxyError) {
-      console.error('代理请求失败:', proxyError);
+      console.error('请求失败:', proxyError);
       throw proxyError;
     }
   } catch (error) {
@@ -123,6 +109,59 @@ export async function generateContent(request: WritingRequest): Promise<ApiRespo
     console.error('生成内容错误:', error);
     return {
       content: '',
+      error: error instanceof Error ? error.message : '未知错误'
+    };
+  }
+}
+
+export async function generateOcr(request: OcrRequest): Promise<OcrResponse> {
+  try {
+    const { file, apiUrl, apiKey, model } = request;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const payload = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: 'gemini-2.0-flash-exp',
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: "只提取文本，不需要任何解释",
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:${file.type};base64,${buffer.toString('base64')}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+            temperature: 0,
+            stream: false,
+        }),
+    };
+    const response = await fetch(apiUrl, payload);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      text: data.choices[0].message.content
+    };
+  } catch (error) {
+    console.error('OCR请求失败:', error);
+    return {
+      text: '',
       error: error instanceof Error ? error.message : '未知错误'
     };
   }

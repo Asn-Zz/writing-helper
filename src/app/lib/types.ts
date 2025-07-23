@@ -83,3 +83,15 @@ export interface GenerateRequest {
   messages?: unknown[];
   stream?: boolean;
 }
+
+export interface OcrRequest {
+  file: File;
+  apiUrl: string;
+  apiKey: string;
+  model: string
+}
+
+export interface OcrResponse {
+  text: string;
+  error?: string;
+}

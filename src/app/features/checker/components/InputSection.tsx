@@ -6,7 +6,7 @@ import {
     FaFileAlt, FaCloudUploadAlt, FaTimes, FaSearch
 } from 'react-icons/fa';
 import { ApiConfigProps } from '@/app/components/ApiSettingBlock';
-import { generate } from '@/app/lib/api';
+import { generate, generateOcr } from '@/app/lib/api';
 import { Issue } from '../types';
 
 const PROOFREADING_MODEL = 'deepseek-v3';
@@ -77,22 +77,30 @@ export default function InputSection({
         setInputText('');
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('apiConfig', JSON.stringify(apiConfig));
+        formData.append('file', file);        
 
         try {
-            const response = await fetch('/api/file-upload', {
-                method: 'POST',
-                body: formData,
-            });
+            const ocrTypes = ['image', 'audio']
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'File upload failed');
+            if (ocrTypes.includes(file.type.split('/')[0])) {
+                const { text, error } = await generateOcr({ file, ...apiConfig });
+                if (!text && error) { throw new Error(error) }
+
+                setInputText(text);
+            } else {
+                const response = await fetch('/api/file-upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'File upload failed');
+                }
+
+                const data = await response.json();
+                setInputText(data.text);
             }
-
-            const data = await response.json();
-            setInputText(data.text);
         } catch (error: any) {
             setApiError(`文件处理失败: ${error.message || '无法读取文件内容'}`);
             removeUploadedFile();
