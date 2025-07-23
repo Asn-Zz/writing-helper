@@ -42,6 +42,7 @@ export default function CheckerEditor() {
             <InputSection
                 apiConfig={apiConfig}
                 inputText={inputText}
+                isLoading={isLoading}
                 setInputText={setInputText}
                 setIssues={setIssues}
                 setShowResults={setShowResults}

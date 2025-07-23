@@ -15,6 +15,7 @@ const PROOFREADING_PROMPT = '你是一个专业的文章校对编辑，擅长发
 interface InputSectionProps {
     apiConfig: ApiConfigProps;
     inputText: string;
+    isLoading: boolean;
     setInputText: (text: string) => void;
     setIssues: (issues: Issue[]) => void;
     setShowResults: (show: boolean) => void;
@@ -27,6 +28,7 @@ interface InputSectionProps {
 export default function InputSection({
     apiConfig,
     inputText,
+    isLoading,
     setInputText,
     setIssues,
     setShowResults,
@@ -39,7 +41,6 @@ export default function InputSection({
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const charCount = useMemo(() => inputText.length, [inputText]);
-    const isLoading = isProcessingFile;
 
     const removeUploadedFile = useCallback(() => {
         setUploadedFileName(null);
