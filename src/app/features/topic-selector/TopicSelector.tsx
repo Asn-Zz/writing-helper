@@ -306,12 +306,12 @@ export default function HomePage() {
         setIsAiAnalyzing(true);
         setAiAnalysis(null); // Clear previous analysis
 
-        const dataSnippet = bookArr.slice(0, 15).map(b => ({ // Send relevant fields
+        const dataSnippet = bookArr.map(b => ({ // Send relevant fields
             title: b.title,
             author: b.author,
             ratingScore: b.ratingScore,
             readingCount: b.reading_count,
-            desc: b.desc.substring(0, 100) + (b.desc.length > 100 ? '...' : '') // Limit desc length
+            desc: b.desc
         }));
 
         const prompt = `

@@ -44,40 +44,71 @@ export default function PdfViewer({
         setSelectedPage(prev => (prev === pageNumber ? null : pageNumber));
     };
 
-    const recognizeSelectedPage = useCallback(async () => {
-        if (selectedPage === null) return;
+    const pagesToRender = Array.from(
+        { length: Math.min(pagesPerView, numPages - currentPage + 1) },
+        (_, i) => currentPage + i
+    );
 
+    const recognizeContent = useCallback(async () => {
         setIsOcrLoading(true);
         setOcrError(null);
-        
+
         try {
-            const pageNumber = selectedPage;
-            const pageElement = pdfContainerRef.current?.querySelector(`.react-pdf__Page[data-page-number="${pageNumber}"]`);
-            if (!pageElement) throw new Error(`Could not find page ${pageNumber} to capture.`);
+            const pagesToRecognize = selectedPage ? [selectedPage] : pagesToRender;
+            if (pagesToRecognize.length === 0) {
+                throw new Error("No pages found to recognize.");
+            }
+
+            const canvases = pagesToRecognize.map(pageNumber => {
+                const pageElement = pdfContainerRef.current?.querySelector(`.react-pdf__Page[data-page-number="${pageNumber}"]`);
+                return pageElement?.querySelector('canvas');
+            }).filter((c): c is HTMLCanvasElement => !!c);
+
+            if (canvases.length !== pagesToRecognize.length) {
+                throw new Error("Could not find canvas for all pages to be recognized.");
+            }
+
+            let imageBlob: Blob | null;
+            if (canvases.length > 1) {
+                const mergedCanvas = document.createElement('canvas');
+                // Simple vertical merge
+                const totalWidth = Math.max(...canvases.map(c => c.width));
+                const totalHeight = canvases.reduce((sum, c) => sum + c.height, 0);
+                mergedCanvas.width = totalWidth;
+                mergedCanvas.height = totalHeight;
+                
+                const ctx = mergedCanvas.getContext('2d');
+                if (!ctx) throw new Error("Could not create merged canvas context.");
+
+                let currentY = 0;
+                for (const canvas of canvases) {
+                    ctx.drawImage(canvas, 0, currentY);
+                    currentY += canvas.height;
+                }
+                imageBlob = await new Promise<Blob | null>((resolve) => mergedCanvas.toBlob(resolve, 'image/png'));
+            } else {
+                imageBlob = await new Promise<Blob | null>((resolve) => canvases[0].toBlob(resolve, 'image/png'));
+            }
+
+            if (!imageBlob) throw new Error(`Could not create image from canvas.`);
+
+            const pageRange = pagesToRecognize.length > 1 
+                ? `${pagesToRecognize[0]}-${pagesToRecognize[pagesToRecognize.length - 1]}` 
+                : `${pagesToRecognize[0]}`;
             
-            const canvas = pageElement.querySelector('canvas');
-            if (!canvas) throw new Error(`Could not find canvas for page ${pageNumber}.`);
+            const ocrFile = new File([imageBlob], `page_${pageRange}.png`, { type: 'image/png' });
+            const description = `--- Page(s) ${pageRange} ---`;
 
-            const imageBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-            if (!imageBlob) throw new Error(`Could not create image from canvas for page ${pageNumber}.`);
-
-            const ocrFile = new File([imageBlob], `page_${pageNumber}.png`, { type: 'image/png' });
             const { text } = await generateOcr({ file: ocrFile, ...apiConfig });
 
-            setInputText(prev => prev + (prev ? '\n\n' : '') + `--- Page ${pageNumber} ---\n` + text);
+            setInputText(prev => prev + (prev ? '\n\n' : '') + description + '\n' + text);
             setSelectedPage(null); // Deselect after successful OCR
         } catch (error: any) {
             setOcrError(error.message);
         } finally {
             setIsOcrLoading(false);
         }
-
-    }, [selectedPage, apiConfig, setInputText]);
-
-    const pagesToRender = Array.from(
-        { length: Math.min(pagesPerView, numPages - currentPage + 1) },
-        (_, i) => currentPage + i
-    );
+    }, [selectedPage, apiConfig, setInputText, pagesToRender]);
 
     const gridClass = pagesPerView > 1 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1';
 
@@ -144,12 +175,12 @@ export default function PdfViewer({
                 </div>
                 <div className="flex items-center">
                     <button 
-                        onClick={recognizeSelectedPage} 
-                        disabled={selectedPage === null || isOcrLoading}
+                        onClick={recognizeContent} 
+                        disabled={numPages === 0 || isOcrLoading}
                         className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-wait flex items-center justify-center"
                     >
                         {isOcrLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaSearchPlus className="mr-2"/>}
-                        {isOcrLoading ? '识别中...' : `识别选中页`}
+                        {isOcrLoading ? '识别中...' : (selectedPage !== null ? '识别选中页' : '识别当前组')}
                     </button>
                 </div>
             </div>
