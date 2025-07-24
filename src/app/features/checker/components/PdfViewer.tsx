@@ -100,6 +100,7 @@ export default function PdfViewer({
             const description = `--- Page(s) ${pageRange} ---`;
 
             const { text } = await generateOcr({ file: ocrFile, ...apiConfig });
+            if (!text) throw new Error(`Could not generate text from image.`);
 
             setInputText(prev => prev + (prev ? '\n\n' : '') + description + '\n' + text);
             setSelectedPage(null); // Deselect after successful OCR
