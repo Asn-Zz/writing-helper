@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback, useState, useRef } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { toPng } from 'html-to-image';
 import {
     FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, FaEyeSlash, FaEye, FaUndo, FaImage

@@ -25,19 +25,39 @@ export default function PdfViewer({
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pagesPerView, setPagesPerView] = useState<number>(2);
     const [selectedPage, setSelectedPage] = useState<number | null>(null);
+    const [isPageLoading, setIsPageLoading] = useState(false);
     const [isOcrLoading, setIsOcrLoading] = useState(false);
     const [ocrError, setOcrError] = useState<string | null>(null);
     const pdfContainerRef = useRef<HTMLDivElement>(null);
+    const renderedPagesCount = useRef(0);
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
         setCurrentPage(1);
         setSelectedPage(null);
+        renderedPagesCount.current = 0;
+        setIsPageLoading(true);
     };
 
     const handleViewChange = (view: number) => {
+        if (pagesPerView === view) return;
+        renderedPagesCount.current = 0;
+        setIsPageLoading(true);
         setPagesPerView(view);
         setCurrentPage(1);
+    };
+
+    const handlePageGroupChange = (direction: 'prev' | 'next') => {
+        renderedPagesCount.current = 0;
+        setIsPageLoading(true);
+        setCurrentPage(p => direction === 'prev' ? Math.max(1, p - pagesPerView) : p + pagesPerView);
+    };
+
+    const onPageRenderSuccess = () => {
+        renderedPagesCount.current += 1;
+        if (renderedPagesCount.current >= pagesToRender.length) {
+            setIsPageLoading(false);
+        }
     };
 
     const handlePageSelection = (pageNumber: number) => {
@@ -126,7 +146,7 @@ export default function PdfViewer({
                         <button
                             key={view}
                             onClick={() => handleViewChange(view)}
-                            disabled={numPages < view}
+                            disabled={numPages < view || isPageLoading}
                             className={`px-3 py-1 text-sm rounded-md transition ${pagesPerView === view ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'} disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             {view} 页
@@ -135,7 +155,12 @@ export default function PdfViewer({
                 </div>
             </div>
 
-            <div ref={pdfContainerRef} className="pdf-multipage-container border border-gray-200 rounded-lg overflow-y-auto bg-gray-100 p-4">
+            <div ref={pdfContainerRef} className="relative pdf-multipage-container border border-gray-200 rounded-lg overflow-y-auto bg-gray-100 p-4">
+                {isPageLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-10">
+                        <FaSpinner className="animate-spin text-blue-600 text-4xl" />
+                    </div>
+                )}
                 <Document
                     file={pdfPreviewUrl}
                     onLoadSuccess={onDocumentLoadSuccess}
@@ -156,6 +181,7 @@ export default function PdfViewer({
                                 renderAnnotationLayer={false}
                                 className="flex justify-center"
                                 scale={0.8}
+                                onRenderSuccess={onPageRenderSuccess}
                             />
                         </div>
                     ))}
@@ -164,13 +190,13 @@ export default function PdfViewer({
 
             <div className="flex flex-col sm:flex-row items-center justify-between mt-4 p-2 bg-gray-50 rounded-b-lg">
                 <div className="flex items-center space-x-2 mb-2 sm:mb-0">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - pagesPerView))} disabled={currentPage <= 1} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => handlePageGroupChange('prev')} disabled={currentPage <= 1 || isPageLoading} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                         上一组
                     </button>
                     <span className="text-sm text-gray-600 whitespace-nowrap">
                         第 {currentPage} - {Math.min(currentPage + pagesPerView - 1, numPages)} / {numPages} 页
                     </span>
-                    <button onClick={() => setCurrentPage(p => p + pagesPerView)} disabled={currentPage + pagesPerView > numPages} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => handlePageGroupChange('next')} disabled={currentPage + pagesPerView > numPages || isPageLoading} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                         下一组
                     </button>
                 </div>

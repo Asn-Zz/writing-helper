@@ -22,7 +22,12 @@
 }
 
 .ignored-issue {
-    opacity: 0.5;
+    color: #666;
+    position: relative;
+    cursor: pointer;
+}
+.ignored-issue:hover .suggestion-popup {
+    display: block;
 }
 
 .suggestion-popup {
@@ -49,6 +54,14 @@
     display: block;
 }
 
+.suggestion-popup::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 10px;
+}
 .suggestion-popup::after {
     content: '';
     position: absolute;
