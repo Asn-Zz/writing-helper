@@ -1,4 +1,6 @@
 
+export type IssueCategory = '错别字' | '语法错误' | '标点符号' | '表达优化';
+
 export interface Issue {
     id: number;
     original: string;
@@ -7,6 +9,8 @@ export interface Issue {
     start: number;
     end: number;
     fixed: boolean;
+    ignored?: boolean;
+    category?: IssueCategory;
 }
 
 export interface ResultSegment {

@@ -56,8 +56,7 @@ export default function InputSection({
         setIssues([]);
         setShowResults(false);
         setApiError(null);
-        removeUploadedFile();
-    }, [setInputText, setOriginalTextForIssues, setIssues, setShowResults, setApiError, removeUploadedFile]);
+    }, [setInputText, setOriginalTextForIssues, setIssues, setShowResults, setApiError]);
 
     const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -117,6 +116,7 @@ export default function InputSection({
 - "original": 原始文本片段 (必须在原文中精确存在)
 - "suggestion": 建议修改后的文本
 - "reason": 修改原因的简要说明
+- "category": 错误类型，可选值为 '错别字', '语法错误', '标点符号', '表达优化'
 请确保:
 1. 只返回JSON格式的数据，不要包含任何额外解释或markdown标记。
 2. "original" 字段必须是原文中连续且完全匹配的片段。
