@@ -40,6 +40,13 @@ export default function ResultsSection({
     const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
     const [showIgnored, setShowIgnored] = useState(true);
 
+    const getSafeCategory = useCallback((category: string | undefined | null): IssueCategory => {
+        if (category && Object.prototype.hasOwnProperty.call(categoryConfig, category)) {
+            return category as IssueCategory;
+        }
+        return '表达优化';
+    }, []);
+
     const activeIssues = useMemo(() => issues.filter(i => !i.ignored), [issues]);
     const unfixedIssuesCount = useMemo(() => activeIssues.filter(i => !i.fixed).length, [activeIssues]);
 
@@ -53,13 +60,11 @@ export default function ResultsSection({
         };
         issuesForDisplay.forEach(issue => {
             groups.all.push(issue);
-            const category = issue.category || '表达优化';
-            if (category in groups) {
-                groups[category as IssueCategory].push(issue);
-            }
+            const safeCategory = getSafeCategory(issue.category);
+            groups[safeCategory].push(issue);
         });
         return groups;
-    }, [issuesForDisplay]);
+    }, [issuesForDisplay, getSafeCategory]);
 
     const filteredIssues = useMemo(() => {
         return groupedIssues[activeCategory] || [];
@@ -77,11 +82,11 @@ export default function ResultsSection({
         if (issue.fixed) return 'fixed-issue';
         if (issue.ignored) return 'ignored-issue'; // Style this class with opacity/gray background
         
-        const category = issue.category || '表达优化';
+        const category = getSafeCategory(issue.category);
         const isActive = activeCategory === 'all' || activeCategory === category;
         
         return `highlighted-${categoryConfig[category].color}${isActive ? '' : '-inactive'}`;
-    }, [activeCategory]);
+    }, [activeCategory, getSafeCategory]);
 
     const resultSegments = useMemo((): ResultSegment[] => {
         if (!showResults || issues.length === 0) {
@@ -327,12 +332,15 @@ export default function ResultsSection({
                             </div>
                         </div>
                         <div id="result-list-area" className="mt-3 border border-gray-200 rounded-lg divide-y divide-gray-200 overflow-y-auto" style={{ height: isScrollable ? '500px' : 'auto' }}>
-                            {filteredIssues.map((issue) => (
+                            {filteredIssues.map((issue) => {
+                                const category = getSafeCategory(issue.category);
+                                const config = categoryConfig[category];
+                                return (
                                 <div key={issue.id} className={`p-3 hover:bg-gray-50 ${issue.fixed ? 'bg-green-50' : issue.ignored ? 'bg-gray-100' : ''}`}>
                                     <div className="flex items-start">
                                         {!issue.fixed && !issue.ignored ? (
-                                            <span className={`font-medium text-xs px-2 py-0.5 rounded-full mr-2 whitespace-nowrap ${categoryConfig[issue.category!].bgColor} ${categoryConfig[issue.category!].textColor}`}>
-                                                {categoryConfig[issue.category!].name}
+                                            <span className={`font-medium text-xs px-2 py-0.5 rounded-full mr-2 whitespace-nowrap ${config.bgColor} ${config.textColor}`}>
+                                                {config.name}
                                             </span>
                                         ) : (
                                             <span className={`font-medium text-xs px-2 py-0.5 rounded-full mr-2 whitespace-nowrap ${issue.fixed ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'}`}>
@@ -378,7 +386,7 @@ export default function ResultsSection({
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </details>
                 )}
