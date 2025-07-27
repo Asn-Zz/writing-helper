@@ -28,7 +28,9 @@ export default function ThesaurusManager({ setThesauruses }: { setThesauruses: (
     }, [thesauruses]);
 
     const resetThesaurus = () => {
-        window.confirm('确定要重置词库吗？') && setLocalThesauruses(defaultThesaurus);
+        if (window.confirm('确定要重置词库吗？')) {
+            setLocalThesauruses(defaultThesaurus);
+        }
     };
 
     return (
