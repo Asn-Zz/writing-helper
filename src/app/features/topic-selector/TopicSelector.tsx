@@ -654,7 +654,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
         <div className="min-h-screen flex flex-col">
             <main className="mx-auto flex-grow w-full">
                 {/* Mode Selection Tabs */}
-                <nav className="flex border-b border-gray-200 mb-6 no-print mt-2">
+                <nav className="flex border-b border-gray-200 mb-6 no-print">
                     <button
                         onClick={() => handleSetAppMode('books')}
                         className={`py-3 px-5 text-center border-b-2 focus:outline-none hover:bg-gray-100 transition duration-150 ease-in-out ${appMode === 'books' ? 'border-blue-500 text-blue-500 font-semibold' : 'border-transparent text-gray-500'}`}

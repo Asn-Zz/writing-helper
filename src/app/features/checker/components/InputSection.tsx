@@ -163,7 +163,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
     }, [clearInput, setInputText]);
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6 mt-4 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex items-center mb-4">
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                     <FaPenFancy className="text-blue-500" />
@@ -203,7 +203,27 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
             />
 
             <div className="flex justify-between items-center mt-6">
-                <div>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={loadExample}
+                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
+                    >
+                        <FaLightbulb className="mr-1" /> 示例
+                    </button>
+                    <button
+                        onClick={compressText}
+                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
+                        title="移除多余的换行符"
+                    >
+                        <FaCompressArrowsAlt className="mr-1" /> 压缩
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <span className="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer" onClick={clearInput}>
+                        <FaTrashAlt />&nbsp;清空
+                    </span>
+
                     <button
                         onClick={checkText}
                         disabled={isLoading || !inputText.trim()}
@@ -215,27 +235,6 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                             <FaSearch className="mr-2" />
                         )}
                         {isLoading ? '校对中...' : '开始校对'}
-                    </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={loadExample}
-                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
-                    >
-                        <FaLightbulb className="mr-1" /> 示例
-                    </button>
-                    <button
-                        onClick={clearInput}
-                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
-                    >
-                        <FaTrashAlt className="mr-1" /> 清空
-                    </button>
-                    <button
-                        onClick={compressText}
-                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
-                        title="移除多余的换行符"
-                    >
-                        <FaCompressArrowsAlt className="mr-1" /> 压缩
                     </button>
                 </div>
             </div>

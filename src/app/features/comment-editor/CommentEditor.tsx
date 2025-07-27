@@ -253,7 +253,7 @@ ${generationSettings.description ? '描述：' + generationSettings.description 
     // --- Render ---
     return (
         <div className="container mx-auto min-h-screen">           
-            <main className='mt-4'>
+            <main>
                 {/* Generation Settings Card */}
                 <div className="card bg-white rounded-lg p-6 mb-6 shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
                     <h2 className="text-2xl font-semibold text-gray-800 mb-4">生成设置</h2>

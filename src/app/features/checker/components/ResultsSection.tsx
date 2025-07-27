@@ -193,9 +193,9 @@ export default function ResultsSection({
                                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition flex items-center"
                             >
                                 {showIgnored ? <FaEyeSlash className="mr-2" /> : <FaEye className="mr-2" />}
-                                {showIgnored ? '隐藏已忽略' : '显示已忽略'}
+                                {showIgnored ? '隐藏' : '显示'}
                             </button>}
-                            {activeCategory !== 'all' && <button
+                            {activeCategory !== 'all' && unignoredInCategoryCount > 0 && <button
                                 onClick={ignoreCurrentSelection}
                                 disabled={unfixedInCategoryCount === 0}
                                 className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -209,7 +209,7 @@ export default function ResultsSection({
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
                                 <FaMagic className="mr-2" />
-                                {activeCategory === 'all' ? `一键修复全部 (${unfixedInCategoryCount})` : `修复此分类 (${unfixedInCategoryCount})`}
+                                {activeCategory === 'all' ? `修复全部 (${unfixedInCategoryCount})` : `修复分类 (${unfixedInCategoryCount})`}
                             </button>
                         </>
                     )}
@@ -326,7 +326,7 @@ export default function ResultsSection({
                                         title="导出修改建议为图片"
                                     >
                                         <FaImage className="mr-2" />
-                                        导出图片
+                                        导出
                                     </button>
                                 </div>
                             </div>
@@ -339,7 +339,7 @@ export default function ResultsSection({
                                 <div key={issue.id} className={`p-3 hover:bg-gray-50 ${issue.fixed ? 'bg-green-50' : issue.ignored ? 'bg-gray-100' : ''}`}>
                                     <div className="flex items-start">
                                         {!issue.fixed && !issue.ignored ? (
-                                            <span className={`font-medium text-xs px-2 py-0.5 rounded-full mr-2 whitespace-nowrap ${config.bgColor} ${config.textColor}`}>
+                                            <span className={`font-medium text-xs px-2 py-0.5 rounded-full mr-2 whitespace-nowrap ${config.bgColor} ${config.textColor} w-[65px] text-center`}>
                                                 {config.name}
                                             </span>
                                         ) : (
@@ -373,13 +373,13 @@ export default function ResultsSection({
                                                         onClick={() => acceptSuggestion(issue.id)}
                                                         className="accept-suggestion-list bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
                                                     >
-                                                        接受
+                                                        <FaCheck />
                                                     </button>
                                                     <button
                                                         onClick={() => ignoreSuggestion(issue.id)}
                                                         className="ignore-suggestion-list bg-gray-200 hover:bg-gray-300 text-gray-600 px-2 py-1 rounded text-xs"
                                                     >
-                                                        忽略
+                                                        <FaTimes />
                                                     </button>
                                                 </>
                                             )}
