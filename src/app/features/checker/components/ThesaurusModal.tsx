@@ -129,7 +129,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                 <div className="flex-grow grid grid-cols-12 overflow-hidden">
                     {/* Left Panel: Groups */}
                     <div className="col-span-4 flex flex-col gap-4 border-r border-slate-200 p-6">
-                        <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">词库分组</h4>
+                        <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">词库分组 ({thesauruses.length})</h4>
                         <div className="flex gap-2 flex-shrink-0">
                             <input
                                 type="text"
@@ -178,7 +178,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                     <div className="col-span-8 flex flex-col gap-4 p-6">
                         {selectedThesaurus ? (
                             <>
-                                <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">管理 "{selectedThesaurus.name}"</h4>
+                                <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">{selectedThesaurus.name}({selectedThesaurus.corrections.length})</h4>
                                 {/* Add Correction Form */}
                                 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
                                     <div className="grid grid-cols-2 gap-3 mb-3">
