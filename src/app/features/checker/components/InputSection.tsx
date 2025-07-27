@@ -47,8 +47,7 @@ export default function InputSection({
         setIssues([]);
         setShowResults(false);
         setApiError(null);
-        setPdfPreviewUrl(null);
-    }, [setInputText, setOriginalTextForIssues, setIssues, setShowResults, setApiError, setPdfPreviewUrl]);
+    }, [setInputText, setOriginalTextForIssues, setIssues, setShowResults, setApiError]);
 
     const [thesauruses, setThesauruses] = useState<Thesaurus[]>([]);
     const createPrompt = useCallback((text: string): string => {
