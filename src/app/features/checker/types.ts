@@ -23,3 +23,15 @@ export interface Voice {
     id: string;
     name: string;
 }
+
+export interface Correction {
+    original: string;
+    suggestion: string;
+}
+
+export interface Thesaurus {
+    id: string;
+    name: string;
+    corrections: Correction[];
+    enabled: boolean;
+}

@@ -190,7 +190,7 @@ export default function OutputSection({
                 </div>
             </div>
 
-            {showOutput && <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            {showOutput && <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <div>
                     <h3 className="text-lg font-medium mb-3 text-gray-800 flex items-center"><FaVolumeUp className="mr-2 text-green-500" />文本转语音</h3>
                     <div className="space-y-3">

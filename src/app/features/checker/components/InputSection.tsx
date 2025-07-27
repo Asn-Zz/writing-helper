@@ -7,7 +7,8 @@ import {
 } from 'react-icons/fa';
 import { ApiConfigProps } from '@/app/components/ApiSettingBlock';
 import { generate, generateOcr } from '@/app/lib/api';
-import { Issue } from '../types';
+import ThesaurusManager from './ThesaurusManager';
+import { Issue, Thesaurus } from '../types';
 
 const PROOFREADING_MODEL = 'deepseek-v3';
 const PROOFREADING_PROMPT = '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。';
@@ -109,8 +110,11 @@ export default function InputSection({
         }
     }, [clearInput, apiConfig, setInputText, setApiError, removeUploadedFile, setPdfPreviewUrl]);
 
+    const [thesauruses, setThesauruses] = useState<Thesaurus[]>([]);
     const createPrompt = useCallback((text: string): string => {
         const strictness = "严格检查所有可能的错误，包括拼写、语法、用词不当，并进行优化。";
+        const thesaurusList = thesauruses.filter(t => t.enabled).map(t => t.corrections).flat();
+        
         return `请分析以下文字片段，找出其中的语法错误、拼写错误、用词不当等问题，并提供修改建议。${strictness}
 要求返回一个JSON数组，每个元素包含以下字段：
 - "original": 原始文本片段 (必须在原文中精确存在)
@@ -125,8 +129,9 @@ export default function InputSection({
 """
 ${text}
 """
+${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.original + ' => ' + t.suggestion).join(', ')}` : ''}
 请直接返回JSON数组：`;
-    }, []);
+    }, [thesauruses]);
 
     const checkText = useCallback(async () => {
         if (isLoading || !inputText.trim()) return;
@@ -225,7 +230,10 @@ ${text}
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                     <FaPenFancy className="text-blue-500" />
                 </div>
-                <h2 className="text-xl font-semibold">输入与校对</h2>
+                <div className="flex items-center justify-between w-full">
+                    <h2 className="text-xl font-semibold">输入与校对</h2>
+                    <ThesaurusManager setThesauruses={setThesauruses} />
+                </div>
             </div>
 
             <div className="relative mb-4">
