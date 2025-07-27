@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import ApiSettingBlock, { ApiConfigProps } from './ApiSettingBlock';
-import { generate } from '../lib/api';
+import { generate } from '@/app/lib/api';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
 type Theme = {
   name: string;
@@ -211,12 +211,7 @@ export default function WechatFormatter() {
   };
 
   // API 设置状态
-  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-    apiProvider: 'openai',
-    apiUrl: '',
-    apiKey: '',
-    model: ''
-  })
+  const { apiConfig } = useApiSettings();
 
   // 添加Markdown语法示例/帮助
   const [showMarkdownHelp, setShowMarkdownHelp] = useState<boolean>(false);
@@ -937,12 +932,6 @@ export default function WechatFormatter() {
               >
                 {showApiSettings ? '隐藏API设置' : '显示API设置'}
               </button>
-            </div>
-
-            <div className="mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-              <ApiSettingBlock 
-                setApiConfig={setApiConfig}
-              />
             </div>
 
             <div>

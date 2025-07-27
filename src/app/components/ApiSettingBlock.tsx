@@ -1,141 +1,125 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import ApiSettings, { ApiConfigProps } from './ApiSettings';
-import { API_URLS, DEFAULT_LLM, DEFAULT_OLLAMA_LLM, PROVIDER_KEY, ApiProvider } from '../lib/constant'
+import { API_URLS, DEFAULT_OLLAMA_LLM, PROVIDER_KEY } from '../lib/constant';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useApiSettings } from './ApiSettingsContext';
+
 export type { ApiConfigProps } from './ApiSettings';
 
 export interface ApiSettingsProps {
   setError?: (error: string) => void;
-  setApiConfig?: (config: ApiConfigProps) => void;
 }
 
-export default function ApiSettingsBlock({ 
-  setError, 
-  setApiConfig 
-}: ApiSettingsProps) {
-  const defaultVisible = true;
+export default function ApiSettingsBlock({ setError }: ApiSettingsProps) {
+  const { apiConfig, setApiConfig } = useApiSettings();
+  const { apiProvider, apiUrl, apiKey, model } = apiConfig;  
+
   const [settingVisible, setSettingVisible] = useLocalStorage('writing_helper_setting_visible', true);
-
-  // API 设置状态
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(PROVIDER_KEY.openai);
-  const [llmApiUrl, setLlmApiUrl] = useState<string>(DEFAULT_LLM.apiUrl);
-  const [llmApiKey, setLlmApiKey] = useState<string>(DEFAULT_LLM.apiKey);
-  const [model, setModel] = useState<string>(DEFAULT_LLM.model);
-
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(defaultVisible);
+  const [showApiSettings, setShowApiSettings] = useState<boolean>(settingVisible);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
- 
-  const [isOllama, setIsOllama] = useState(false);
+  const [isOllama, setIsOllama] = useState(apiProvider === PROVIDER_KEY.ollama);
   const [ollamaModel, setOllamaModel] = useState(DEFAULT_OLLAMA_LLM.model);
-
-  // 处理API设置的显示/隐藏
-  const toggleApiSettings = () => {
-    const settingVisible = !showApiSettings
-
-    setSettingVisible(settingVisible);
-    setShowApiSettings(settingVisible);
-  };
-
-  const setApiConfigByStore = (config: ApiConfigProps) => {
-    if (config.apiProvider === PROVIDER_KEY.ollama) {
-      setIsOllama(true);
-    }
-
-    setApiProvider(config.apiProvider);
-    setLlmApiUrl(config.apiUrl);
-    setLlmApiKey(config.apiKey);
-    setModel(config.model);
-    
-    if (config.apiKey)
-      setAvailableModels([config.model]);
-
-    if (setApiConfig)
-      setApiConfig(config);
-  }
-
-  // 获取可用的 OpenAI 模型
-  const fetchOpenAIModels = async () => {
-    try {
-      const [modelUrl] = llmApiUrl.split('/chat');
-      const response = await fetch(`${modelUrl}/models`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${llmApiKey}`,
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('无法获取模型列表');
-      }
-
-      const res = await response.json();
-      
-      if (res.data) {
-        const models = res.data.map((model: Record<string, unknown>) => model.id);
-
-        setAvailableModels(models);
-        if (models.length > 0 && !models.includes(model)) {
-          setModel(models[0]);
-        }
-
-        return models
-      }
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      if (setError)
-        setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
-    }
-  };
-
-  // 获取可用的 Ollama 模型
-  const fetchOllamaModels = async () => {
-    try {
-      const response = await fetch(API_URLS.ollama.replace('generate', 'tags'));
-
-      if (!response.ok) {
-        throw new Error('无法获取模型列表');
-      }
-
-      const data = await response.json();
-      if (data.models) {
-        const models = data.models.map((model: Record<string, unknown>) => model.name);
-
-        setAvailableModels(models);
-        if (models.length > 0 && !models.includes(ollamaModel)) {
-          setOllamaModel(models[0]);
-        }
-      }
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      if (setError)
-        setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
-    }
-  };
 
   useEffect(() => {
     setShowApiSettings(settingVisible);
   }, [settingVisible]);
-  // 处理 API 提供商的切换
 
-  return <>
-    {/* API 设置部分 */}
+  const toggleApiSettings = () => {
+    const newVisibility = !showApiSettings;
+    setSettingVisible(newVisibility);
+    setShowApiSettings(newVisibility);
+  };
+
+  const handleApiConfigChange = (newConfig: Partial<ApiConfigProps>) => {
+    const updatedConfig = { ...apiConfig, ...newConfig };
+    setApiConfig(updatedConfig);
+
+    if (newConfig.apiProvider === PROVIDER_KEY.ollama) {
+      setIsOllama(true);
+      fetchOllamaModels();
+    } else if (newConfig.apiProvider) {
+      setIsOllama(false);
+      if (updatedConfig.apiKey) {
+        fetchOpenAIModels(updatedConfig.apiUrl, updatedConfig.apiKey);
+      }
+    }
+  };
+
+  const fetchOpenAIModels = async (url: string, key: string) => {
+    try {
+      const [modelUrl] = url.split('/chat');
+      const response = await fetch(`${modelUrl}/models`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('无法获取模型列表');
+
+      const res = await response.json();
+      if (res.data) {
+        const models = res.data.map((m: Record<string, unknown>) => m.id as string);
+        setAvailableModels(models);
+        if (models.length > 0 && !models.includes(apiConfig.model)) {
+          handleApiConfigChange({ model: models[0] });
+        }
+
+        return models;
+      }
+    } catch (error) {
+      console.error('获取模型列表失败:', error);
+      if (setError) setError('无法获取 OpenAI 模型列表，请检查 API Key 和网络连接');
+    }
+  };
+
+  const fetchOllamaModels = async () => {
+    try {
+      const response = await fetch(API_URLS.ollama.replace('generate', 'tags'));
+      if (!response.ok) throw new Error('无法获取模型列表');
+
+      const data = await response.json();
+      if (data.models) {
+        const models = data.models.map((m: Record<string, unknown>) => m.name as string);
+        setAvailableModels(models);
+        if (models.length > 0 && !models.includes(ollamaModel)) {
+          setOllamaModel(models[0]); // This seems to be local state, consider moving to context if needed globally
+        }
+
+        return models;
+      }
+    } catch (error) {
+      console.error('获取模型列表失败:', error);
+      if (setError) setError('无法获取 Ollama 模型列表，请确保 Ollama 服务正在运行');
+    }
+  };
+  
+  useEffect(() => {
+    if (apiProvider === PROVIDER_KEY.ollama) {
+      fetchOllamaModels();
+    } else if (apiKey) {
+      fetchOpenAIModels(apiUrl, apiKey);
+    }
+  }, [apiProvider, apiKey, apiUrl]);
+
+  return (
     <ApiSettings
-      setApiConfig={setApiConfigByStore}
       showSettings={showApiSettings}
       toggleSettings={toggleApiSettings}
+      setApiConfig={setApiConfig}
       apiProvider={apiProvider}
-      setApiProvider={setApiProvider}
-      apiUrl={llmApiUrl}
-      setApiUrl={setLlmApiUrl}
-      apiKey={llmApiKey}
-      setApiKey={setLlmApiKey}
+      setApiProvider={(p) => handleApiConfigChange({ apiProvider: p })}
+      apiUrl={apiUrl}
+      setApiUrl={(u) => handleApiConfigChange({ apiUrl: u })}
+      apiKey={apiKey}
+      setApiKey={(k) => handleApiConfigChange({ apiKey: k })}
       model={model}
-      setModel={setModel}
+      setModel={(m) => handleApiConfigChange({ model: m })}
       availableModels={availableModels}
       setAvailableModels={setAvailableModels}
-      fetchModels={isOllama ? fetchOllamaModels : fetchOpenAIModels}
+      fetchModels={isOllama ? fetchOllamaModels : () => fetchOpenAIModels(apiUrl, apiKey)}
     />
-  </>
+  );
 }

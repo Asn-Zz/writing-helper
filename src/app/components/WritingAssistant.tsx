@@ -5,7 +5,7 @@ import { PromptStyle, WritingRequest } from '../lib/types';
 import { generateContent, exportToMarkdown } from '../lib/api';
 import PromptForm from './PromptForm';
 import MarkdownEditor from './MarkdownEditor';
-import ApiSettingBlock, { ApiConfigProps } from './ApiSettingBlock';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
 // Default prompt style template
 const defaultPromptStyle: PromptStyle = {
@@ -61,12 +61,7 @@ export default function WritingAssistant() {
   const [wordCount, setWordCount] = useState<number>(800);
 
   // API 设置状态
-  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-    apiProvider: 'openai',
-    apiUrl: '',
-    apiKey: '',
-    model: ''
-  })
+  const { apiConfig } = useApiSettings();
 
   const notOpenAIKey = useMemo(() => {    
     return apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey;
@@ -179,11 +174,6 @@ export default function WritingAssistant() {
               
               
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* LLM API Settings */}
-                <ApiSettingBlock 
-                  setApiConfig={setApiConfig}
-                />
-
                 {/* Content Settings */}
                 <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
                   <h3 className="font-medium text-gray-700 flex items-center">

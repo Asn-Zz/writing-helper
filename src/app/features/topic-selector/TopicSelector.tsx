@@ -8,8 +8,8 @@ import {
     FaTrophy, FaLightbulb, FaUsers, FaArrowUpShortWide,
     FaArrowDownWideShort, FaTag, FaRegClock, FaRotate, FaRotateRight
 } from 'react-icons/fa6'; // Using react-icons (Font Awesome 6)
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
-import { generate } from '../../lib/api';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import { generate } from '@/app/lib/api';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -98,12 +98,7 @@ export default function HomePage() {
     const chartCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const chartInstanceRef = useRef<Chart | null>(null);
     // API 设置状态
-    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-        apiProvider: 'openai',
-        apiUrl: '',
-        apiKey: '',
-        model: ''
-    })
+    const { apiConfig } = useApiSettings();
     const [bookPagination, setBookPagination] = useState({ ...BOOK_PAGE_DEFAULTS });
 
     // --- Information Analysis State ---
@@ -658,9 +653,6 @@ ${JSON.stringify(dataSnippet, null, 2)}
     return (
         <div className="min-h-screen flex flex-col">
             <main className="mx-auto flex-grow w-full">
-                {/* API 设置部分 */}
-                <ApiSettingBlock setApiConfig={setApiConfig} />
-
                 {/* Mode Selection Tabs */}
                 <nav className="flex border-b border-gray-200 mb-6 no-print mt-2">
                     <button

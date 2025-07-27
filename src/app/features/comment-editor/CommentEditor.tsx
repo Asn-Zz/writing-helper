@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { FaCopy, FaEdit, FaTrash, FaMagic } from 'react-icons/fa'; // Import necessary icons
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
-import { generate } from '../../lib/api';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import { generate } from '@/app/lib/api';
 
 // Define the structure for a comment
 interface Comment {
@@ -68,12 +68,7 @@ export default function CommentEditorPage() {
     const notificationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // API 设置状态
-    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-      apiProvider: 'openai',
-      apiUrl: '',
-      apiKey: '',
-      model: ''
-    })
+    const { apiConfig } = useApiSettings();
 
     // --- Event Handlers ---
     const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -257,10 +252,7 @@ ${generationSettings.description ? '描述：' + generationSettings.description 
 
     // --- Render ---
     return (
-        <div className="container mx-auto min-h-screen">
-           {/* API 设置部分 */}
-           <ApiSettingBlock setApiConfig={setApiConfig} />
-           
+        <div className="container mx-auto min-h-screen">           
             <main className='mt-4'>
                 {/* Generation Settings Card */}
                 <div className="card bg-white rounded-lg p-6 mb-6 shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">

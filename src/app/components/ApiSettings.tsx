@@ -59,13 +59,7 @@ export default function ApiSettings({
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const currentCached = cachedProviderModels[apiProvider] || [];    
-
     setIsMounted(true);
-    
-    if (currentCached.length && setAvailableModels) {      
-      setAvailableModels(currentCached);
-    }
   }, []);
 
   const displayedModels = useMemo(() => {
@@ -128,6 +122,11 @@ export default function ApiSettings({
   };
 
   useEffect(() => {
+    const currentCached = cachedProviderModels[apiProvider] || [];   
+        
+    if (currentCached.length && setAvailableModels) {      
+      setAvailableModels(currentCached);      
+    }
     loadApiConfig(settingConfig);
   }, []); // This useEffect is safe, it only runs once on mount.
 
@@ -191,7 +190,7 @@ export default function ApiSettings({
             <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1H4v8a1 1 0 001 1h10a1 1 0 001-1V6zM4 4a1 1 0 011-1h10a1 1 0 011 1v1H4V4z" clipRule="evenodd" />
           </svg>
           API 设置
-          {saveStatus !== 'idle' && (
+          {isMounted && saveStatus !== 'idle' && (
             <span className="ml-2 text-xs inline-flex items-center">
               {saveStatus === 'saving' ? (
                 <span className="text-blue-500 animate-pulse">保存中...</span>
@@ -208,7 +207,7 @@ export default function ApiSettings({
         </h3>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${showSettings ? 'transform rotate-180' : ''}`}
+          className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${isMounted && showSettings ? 'transform rotate-180' : ''}`}
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -216,7 +215,7 @@ export default function ApiSettings({
         </svg>
       </div>
 
-      {showSettings && (
+      {isMounted && showSettings && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

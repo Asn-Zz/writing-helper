@@ -1,5 +1,7 @@
-import React from 'react';
+"use client";
+import React, { useState, useEffect } from 'react';
 import Navigation from './Navigation';
+import ApiSettingsBlock from './ApiSettingBlock';
 
 type FeatureLayoutProps = {
   children: React.ReactNode;
@@ -10,11 +12,27 @@ type FeatureLayoutProps = {
 export default function FeatureLayout({
   children,
   title,
-  subtitle,
+  subtitle, 
 }: FeatureLayoutProps) {
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
+
+  const toggleSettings = () => {
+    setSettingsOpen(!isSettingsOpen);
+  };
+
+  const [isAuthed, setIsAuthed] = useState(false);
+  useEffect(() => {
+    const storeAuthKey = 'writing_helper_auth_token';
+    const authKey = localStorage.getItem(storeAuthKey);
+
+    if (authKey === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
+      setIsAuthed(true);
+    }
+  }, []);
+
   return (
     <div className="bg-gray-50 flex flex-col">
-      <Navigation />
+      <Navigation isAuthed={isAuthed} onSettingsClick={toggleSettings} />
       
       <main className="flex-1">
         {(title || subtitle) && (
@@ -35,6 +53,9 @@ export default function FeatureLayout({
         )}
         
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+          <div className="mb-4" style={{ display: isSettingsOpen ? 'block' : 'none' }}>
+            <ApiSettingsBlock />
+          </div>
           {children}
         </div>
       </main>

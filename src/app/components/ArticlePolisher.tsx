@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { polishContent } from '../lib/api';
 import { PolishRequest, PolishResponse } from '../lib/types';
-import ApiSettingBlock, { ApiConfigProps } from './ApiSettingBlock';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
 export default function ArticlePolisher() {
   const [polishType, setPolishType] = useState<'standard' | 'academic' | 'business' | 'creative'>('standard');
@@ -14,12 +14,7 @@ export default function ArticlePolisher() {
   const [error, setError] = useState<string | null>(null);
 
   // API 设置状态
-  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-    apiProvider: 'openai',
-    apiUrl: '',
-    apiKey: '',
-    model: ''
-  })
+  const { apiConfig } = useApiSettings();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +61,6 @@ export default function ArticlePolisher() {
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 使用抽离的 API 设置组件 */}
-              <ApiSettingBlock
-                setApiConfig={setApiConfig} 
-              />
-
               {/* 润色类型设置 */}
               <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
                 <h3 className="font-medium text-gray-700 flex items-center">

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import FeatureLayout from '../../components/FeatureLayout';
+import FeatureLayout from '@/app/components/FeatureLayout';
 import { ApiResponse } from '@/app/lib/types';
 import { generate } from '@/app/lib/api';
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
 // 预设的洗稿 prompt
 const presetPrompts = [
@@ -118,12 +118,7 @@ export default function AIRewritePage() {
   const [processingStep, setProcessingStep] = useState<string | null>(null);
 
   // API 设置状态
-  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-    apiProvider: 'openai',
-    apiUrl: '',
-    apiKey: '',
-    model: ''
-  })
+  const { apiConfig } = useApiSettings();
 
   const notOpenAIKey = useMemo(() => {    
     return apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey;
@@ -291,11 +286,6 @@ ${strategiesResponse.content}
             </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* API 设置部分 */}
-            <ApiSettingBlock
-              setApiConfig={setApiConfig}
-            />
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 输入需要处理的文本

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import FeatureLayout from '../../components/FeatureLayout';
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
+import FeatureLayout from '@/app/components/FeatureLayout';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 
 export default function TextSummarizer() {
@@ -11,12 +11,7 @@ export default function TextSummarizer() {
   const [loading, setLoading] = useState(false);
 
   // API 设置状态
-  const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-    apiProvider: 'openai',
-    apiUrl: '',
-    apiKey: '',
-    model: ''
-  })
+  const { apiConfig } = useApiSettings();
 
   const promptTemplate = `请按以下结构提取文章关键信息并生成摘要：
 核心主题（1句话概括）
@@ -66,9 +61,6 @@ ${text}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="p-6">
           <form onSubmit={handleSubmit}>
-            {/* API 设置部分 */}
-            <ApiSettingBlock setApiConfig={setApiConfig} />
-
             <div className="my-4">
               <label htmlFor="text" className="block text-sm font-medium text-gray-700 mb-2">
                 输入需要摘要的文本

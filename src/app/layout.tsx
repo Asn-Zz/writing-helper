@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import Script from 'next/script';
+import { Metadata } from "next";
 import Footer from "./components/Footer";
+import { ApiSettingsProvider } from "./components/ApiSettingsContext";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,9 +50,11 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <div className="flex-grow">
-          {children}
-        </div>
+        <ApiSettingsProvider>
+          <div className="flex-grow">
+            {children}
+          </div>
+        </ApiSettingsProvider>
         <Footer />
       </body>
     </html>

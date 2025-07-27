@@ -8,8 +8,8 @@ import {
     FaChartLine, FaEye, FaBrain, FaCheck
 } from 'react-icons/fa'; // Using Font Awesome 6 via react-icons/fa6 or fa
 import { FaRegHeart, FaRegComment, FaRegStar, FaRegThumbsUp } from 'react-icons/fa'; // Regular icons
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
-import { generate } from '../../lib/api';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import { generate } from '@/app/lib/api';
 
 // Define a type for the analysis data structure
 interface AnalysisScore {
@@ -69,12 +69,7 @@ export default function NewMediaEditorPage() {
     const [copyButtonIcon, setCopyButtonIcon] = useState<React.ElementType>(FaCopy);
 
     // --- API Configuration (Hardcoded for now - move to environment variables) ---
-    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-      apiProvider: 'openai',
-      apiUrl: '',
-      apiKey: '',
-      model: '',
-    })
+    const { apiConfig } = useApiSettings();
 
     // --- Effects ---
     // Load initial topics from localStorage on mount
@@ -449,9 +444,6 @@ export default function NewMediaEditorPage() {
     // --- Render ---
     return (
         <div className="container mx-auto">
-            {/* API 设置部分 */}
-            <ApiSettingBlock setApiConfig={setApiConfig} />
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
                 {/* Left Side: Content Creation & Analysis */}
                 <div className="lg:col-span-2 space-y-6">

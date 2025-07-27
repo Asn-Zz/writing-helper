@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import ApiSettingBlock, { ApiConfigProps } from '../../components/ApiSettingBlock';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import InputSection from './components/InputSection';
 import ResultsSection from './components/ResultsSection';
 import OutputSection from './components/OutputSection';
@@ -13,12 +13,7 @@ import './style.css';
 const PdfViewer = dynamic(() => import('./components/PdfViewer'), { ssr: false });
 
 export default function CheckerEditor() {
-    const [apiConfig, setApiConfig] = useState<ApiConfigProps>({
-      apiProvider: 'openai',
-      apiUrl: '',
-      apiKey: '',
-      model: ''
-    });
+    const { apiConfig } = useApiSettings();
     const [inputText, setInputText] = useState('');
     const [issues, setIssues] = useState<Issue[]>([]);
     const [showResults, setShowResults] = useState(false);
@@ -32,13 +27,11 @@ export default function CheckerEditor() {
             if (pdfPreviewUrl) {
                 URL.revokeObjectURL(pdfPreviewUrl);
             }
-        };
+        };        
     }, [pdfPreviewUrl]);
 
     return (
         <div className="container mx-auto">
-            <ApiSettingBlock setApiConfig={setApiConfig} />
-
             <InputSection
                 apiConfig={apiConfig}
                 inputText={inputText}
