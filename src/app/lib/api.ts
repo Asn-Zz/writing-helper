@@ -31,6 +31,9 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         stream,
         temperature
       };
+      if (request.response_format) {
+        requestBody.response_format = request.response_format;
+      }
     }
     
     try {

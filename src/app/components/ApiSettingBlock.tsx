@@ -102,7 +102,7 @@ export default function ApiSettingsBlock({ setError }: ApiSettingsProps) {
     } else if (apiKey) {
       fetchOpenAIModels(apiUrl, apiKey);
     }
-  }, [apiProvider, apiKey, apiUrl]);
+  }, [apiKey]);
 
   return (
     <ApiSettings

@@ -82,6 +82,7 @@ export interface GenerateRequest {
   temperature?: number;
   messages?: unknown[];
   stream?: boolean;
+  response_format?: unknown;
 }
 
 export interface OcrRequest {

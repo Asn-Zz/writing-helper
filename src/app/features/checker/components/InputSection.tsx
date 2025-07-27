@@ -91,6 +91,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                 { role: "user", content: prompt }
               ],
               temperature: 0.1,
+              response_format: { type: 'json_object' },
             });
             const parsedIssues = JSON.parse(data.content);
             if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组。');
