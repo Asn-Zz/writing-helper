@@ -1,4 +1,4 @@
-import MarkdownFormatter from '../../components/MarkdownFormatter';
+import MarkdownFormatter from './components/MarkdownFormatter';
 import { Metadata } from 'next';
 import FeatureLayout from '../../components/FeatureLayout';
 

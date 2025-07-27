@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import ArticlePolisher from '../components/ArticlePolisher';
+import ArticlePolisher from './components/ArticlePolisher';
 import FeatureLayout from '../components/FeatureLayout';
 
 export default function PolishPage() {

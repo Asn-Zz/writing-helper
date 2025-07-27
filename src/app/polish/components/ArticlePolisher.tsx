@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { polishContent } from '../lib/api';
-import { PolishRequest, PolishResponse } from '../lib/types';
+import { polishContent } from '../../lib/api';
+import { PolishRequest, PolishResponse } from '../../lib/types';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
 export default function ArticlePolisher() {
