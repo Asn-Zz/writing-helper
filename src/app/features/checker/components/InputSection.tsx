@@ -150,7 +150,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         if (!inputText.trim()) return;
         setInputText(inputText.replace(/(\r\n|\r|\n){2,}/g, '\n'));
     }, [inputText, setInputText]);
-
+    
     const loadExample = useCallback(() => {
         clearInput();
         const example = `太阳徐徐升起，给大地带来了早晨的气息。小名从梦中惊醒，他揉了揉眼睛，发先已经9点了。
@@ -161,6 +161,45 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 人们常说"书读百变，其义自现。"小明觉的这句话特别有道理。他决定从明天开始，每天写一篇读书笔记，提高自己的阅读理解能力。`;
         setInputText(example);
     }, [clearInput, setInputText]);
+
+    const handlePaste = useCallback(async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = event.clipboardData.getData('text');
+        const urlRegex = /^(https|http):\/\/[^\s/$.?#].[^\s]*$/i;
+        const apiKey = process.env.NEXT_PUBLIC_FIRE_KEY;
+        const authKey = localStorage.getItem('writing_helper_auth_token');
+        
+        if (urlRegex.test(pastedText) && apiKey && authKey === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
+            event.preventDefault();
+            if (window.confirm(`检测到链接，是否要抓取网页内容？\n${pastedText}`)) {
+                setIsLoading(true);
+                setApiError(null);
+                try {
+                    const body = { url: pastedText, formats: ['markdown'] }
+                    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`,
+                        },
+                        body: JSON.stringify(body),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: '抓取失败' }));
+                        throw new Error(errorData.message || '无法抓取网页内容');
+                    }
+
+                    const data = await response.json();
+                    const content = data?.data?.markdown || data?.data?.content;
+                    setInputText(content);
+                } catch (error: any) {
+                    setApiError(error.message);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        }
+    }, [setIsLoading, setApiError, setInputText]);
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -178,6 +217,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                 <textarea
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    onPaste={handlePaste}
                     rows={10}
                     className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                     placeholder="在此处粘贴您的文章内容..."
