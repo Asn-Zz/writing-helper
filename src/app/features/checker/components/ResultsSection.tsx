@@ -55,7 +55,7 @@ export default function ResultsSection({
             setSearchPopup({                                                                                      
                 visible: true,                                                                                     
                 x: rect.left - containerRect.left + rect.width / 2 - 75, // Adjust for icon size                   
-                y: rect.top - containerRect.top - 45, // Position above selection                                  
+                y: rect.top - containerRect.top - 40, // Position above selection                                  
                 text: selectedText,                                                                                
             });                                                                                                    
         } else {                                                                                                   
@@ -336,7 +336,7 @@ export default function ResultsSection({
                 </div>
 
                 {issuesForDisplay.length > 0 && (
-                    <details className="mt-6 mb-6" open>
+                    <details className="mt-6" open>
                         <summary className="cursor-pointer text-gray-600 hover:text-blue-600">
                             <FaListUl className="inline-block mr-1" /> 查看/隐藏 问题列表 ({issuesForDisplay.length})
                         </summary>
