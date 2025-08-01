@@ -4,8 +4,9 @@ import React, { useMemo, useCallback, useState } from 'react';
 import { toPng } from 'html-to-image';
 import {
     FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, 
-    FaEyeSlash, FaEye, FaUndo, FaImage, FaSearch, FaBookOpen
+    FaEyeSlash, FaEye, FaUndo, FaImage, FaSearch, FaBookOpen, FaBook
 } from 'react-icons/fa';
+import eventBus from '@/app/lib/eventBus';
 import { Issue, ResultSegment, IssueCategory } from '../types';
 
 interface ResultsSectionProps {
@@ -53,8 +54,8 @@ export default function ResultsSection({
             const containerRect = resultArea.getBoundingClientRect();                                             
             setSearchPopup({                                                                                      
                 visible: true,                                                                                     
-                x: rect.left - containerRect.left + rect.width / 2 - 18, // Adjust for icon size                   
-                y: rect.top - containerRect.top - 40, // Position above selection                                  
+                x: rect.left - containerRect.left + rect.width / 2 - 75, // Adjust for icon size                   
+                y: rect.top - containerRect.top - 45, // Position above selection                                  
                 text: selectedText,                                                                                
             });                                                                                                    
         } else {                                                                                                   
@@ -269,7 +270,7 @@ export default function ResultsSection({
                 <div id="result-text-area" onMouseUp={handleTextSelection} className="relative p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 min-h-[150px] mb-6">
                     {searchPopup?.visible && (
                         <div 
-                            className='absolute z-10 flex bg-white border border-gray-300 rounded-lg shadow-lg' 
+                            className='absolute z-10 flex bg-white rounded-lg shadow-lg' 
                             style={{ left: searchPopup.x, top: searchPopup.y }} 
                             onMouseDown={(e) => e.preventDefault()}
                         >
@@ -277,7 +278,7 @@ export default function ResultsSection({
                                 href={`https://www.shenyandayi.com/wantWordsResult?query=${encodeURIComponent(searchPopup.text)}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="px-4 py-2 border-r border-gray-300 hover:bg-gray-100"  
+                                className="px-4 py-2 border-r border-gray-100 hover:bg-gray-100"  
                                 title="近义词查询"
                             >
                                 <FaBookOpen className="text-green-500" /> 
@@ -287,11 +288,19 @@ export default function ResultsSection({
                                 href={`https://cn.bing.com/search?q=${encodeURIComponent(searchPopup.text)}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="px-4 py-2 hover:bg-gray-100"  
+                                className="px-4 py-2 border-r border-gray-100 hover:bg-gray-100"  
                                 title="网页搜索"
                             >
                                 <FaSearch className="text-blue-500" />
                             </a>
+
+                            <button 
+                                onClick={() => eventBus.emit('openThesaurusModal')}
+                                className="px-4 py-2 hover:bg-gray-100"
+                                title="打开词库"
+                            >
+                                <FaBook className="text-blue-500" />
+                            </button>
                         </div>
                     )}
                     {resultSegments.map((segment, index) =>

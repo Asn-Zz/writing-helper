@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FaBook } from 'react-icons/fa';
 import ThesaurusModal from './ThesaurusModal';
 import { useLocalStorage } from '@/app/hooks/useLocalStorage';
+import eventBus from '@/app/lib/eventBus';
 import { Thesaurus } from '../types';
 
 const defaultThesaurus: Thesaurus[] = [
@@ -25,7 +26,10 @@ export default function ThesaurusManager({ setThesauruses }: { setThesauruses: (
 
         setThesauruses(enabledGroups);
         setDisplayNames(enabledGroups.map(t => t.name).join(', '));
-    }, [thesauruses]);
+
+        const handleOpenModal = () => setIsModalOpen(true);
+        eventBus.on('openThesaurusModal', handleOpenModal);        
+    }, [thesauruses, setThesauruses]);
 
     const resetThesaurus = () => {
         if (window.confirm('确定要重置词库吗？')) {
