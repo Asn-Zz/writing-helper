@@ -72,6 +72,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 请直接返回JSON数组：`;
     }, [thesauruses]);
 
+    const [wordCount, setWordCount] = useState(0);
     const checkText = useCallback(async () => {
         if (isLoading || !inputText.trim()) return;
 
@@ -80,6 +81,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         setIssues([]);
         setApiError(null);
         setOriginalTextForIssues(inputText);
+        setWordCount(0);
 
         try {
             const prompt = createPrompt(inputText);
@@ -92,6 +94,9 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
               ],
               temperature: 0.1,
               response_format: { type: 'json_object' },
+              handler: (content: string) => {
+                setWordCount(content.length);
+              }
             });
             const parsedIssues = JSON.parse(data.content);
             if (!Array.isArray(parsedIssues)) throw new Error('响应不是JSON数组。');
@@ -274,7 +279,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                         ) : (
                             <FaSearch className="mr-2" />
                         )}
-                        {isLoading ? '校对中...' : '开始校对'}
+                        {isLoading ? `${wordCount ? `已校对(${wordCount})` : '校对中...'}` : '开始校对'}
                     </button>
                 </div>
             </div>

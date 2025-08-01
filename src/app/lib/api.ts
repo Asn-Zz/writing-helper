@@ -1,13 +1,14 @@
 "use client";
 
 import { generateDiffMarkup } from "./utils";
-import { GenerateRequest, WritingRequest, ApiResponse, PromptStyle, PolishRequest, PolishResponse, OcrRequest, OcrResponse } from './types';
+import { GenerateRequest, WritingRequest, ApiResponse, PolishRequest, PolishResponse, OcrRequest, OcrResponse } from './types';
 
 export * from './utils';
 
 export async function generate(request: GenerateRequest): Promise<ApiResponse> {
   try {
-    const { apiUrl, apiKey, prompt, model, messages, temperature = 0.7, stream = false } = request;
+    const { apiUrl, apiKey, prompt, model, messages, handler, temperature = 0.7 } = request;
+    const stream = request.stream ?? true;
     
     // Detect API provider type from URL (simple detection)
     const isOllamaApi = model.includes('ollama') || model.includes('11434');
@@ -51,27 +52,80 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         throw new Error(errorData.error?.message || `代理服务错误: ${proxyResponse.status}: ${proxyResponse.statusText}`);
       }
       
-      const data = await proxyResponse.json();      
-      // 保存原始响应用于调试
-      // console.log('原始 API 响应:', JSON.stringify(data, null, 2));
-      
-      // 以与测试页面相同的方式尝试不同方法提取内容
-      let content = '';
-      
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        // 标准格式
-        content = data.choices[0].message.content;
-        content = content.replace(/```json\s*|```/g, '').trim();
-        console.log('提取内容:', content);
-      } else if (data.error) {
-        // 有明确的错误信息
-        throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
+      if (stream) {
+        let content = '';
+        if (!proxyResponse.body) {
+            throw new Error("Response body is empty for streaming.");
+        }
+        const reader = proxyResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep partial line in buffer
+
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+
+                if (isOllamaApi) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed.response) {
+                            content += parsed.response;
+                            handler?.(content);
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse Ollama stream chunk:", line, e);
+                    }
+                } else { // OpenAI-compatible
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.substring(6);
+                        if (jsonStr.trim() === '[DONE]') {
+                            continue;
+                        }
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                                content += parsed.choices[0].delta.content;
+                                handler?.(content);
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse OpenAI stream chunk:", jsonStr, e);
+                        }
+                    }
+                }
+            }
+        }
+        return { content };
       } else {
-        // 无法解析的响应
-        throw new Error(`无法从API响应中提取内容: ${JSON.stringify(data)}`);
+        const data = await proxyResponse.json();      
+        // 保存原始响应用于调试
+        // console.log('原始 API 响应:', JSON.stringify(data, null, 2));
+        
+        // 以与测试页面相同的方式尝试不同方法提取内容
+        let content = '';
+        
+        if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+          // 标准格式
+          content = data.choices[0].message.content;
+          content = content.replace(/```json\s*|```/g, '').trim();
+          console.log('提取内容:', content);
+        } else if (data.error) {
+          // 有明确的错误信息
+          throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
+        } else {
+          // 无法解析的响应
+          throw new Error(`无法从API响应中提取内容: ${JSON.stringify(data)}`);
+        }
+        
+        return { content };
       }
-      
-      return { content };
     } catch (proxyError) {
       console.error('请求失败:', proxyError);
       throw proxyError;
