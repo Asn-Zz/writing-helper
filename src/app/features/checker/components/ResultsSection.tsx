@@ -3,7 +3,8 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { toPng } from 'html-to-image';
 import {
-    FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, FaEyeSlash, FaEye, FaUndo, FaImage, FaSearch
+    FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, 
+    FaEyeSlash, FaEye, FaUndo, FaImage, FaSearch, FaBookOpen
 } from 'react-icons/fa';
 import { Issue, ResultSegment, IssueCategory } from '../types';
 
@@ -267,16 +268,31 @@ export default function ResultsSection({
 
                 <div id="result-text-area" onMouseUp={handleTextSelection} className="relative p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 min-h-[150px] mb-6">
                     {searchPopup?.visible && (
-                        <a 
-                            href={`https://cn.bing.com/search?q=${encodeURIComponent(searchPopup.text)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="absolute z-10 bg-white border border-gray-300 rounded-full p-2 shadow-lg hover:bg-gray-100"
-                            style={{ left: searchPopup.x, top: searchPopup.y }}
+                        <div 
+                            className='absolute z-10 flex bg-white border border-gray-300 rounded-lg shadow-lg' 
+                            style={{ left: searchPopup.x, top: searchPopup.y }} 
                             onMouseDown={(e) => e.preventDefault()}
                         >
-                            <FaSearch className="text-blue-500" />
-                        </a>
+                            <a 
+                                href={`https://www.shenyandayi.com/wantWordsResult?query=${encodeURIComponent(searchPopup.text)}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="px-4 py-2 border-r border-gray-300 hover:bg-gray-100"  
+                                title="近义词查询"
+                            >
+                                <FaBookOpen className="text-green-500" /> 
+                            </a>
+
+                            <a 
+                                href={`https://cn.bing.com/search?q=${encodeURIComponent(searchPopup.text)}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="px-4 py-2 hover:bg-gray-100"  
+                                title="网页搜索"
+                            >
+                                <FaSearch className="text-blue-500" />
+                            </a>
+                        </div>
                     )}
                     {resultSegments.map((segment, index) =>
                         segment.type === 'text' ? (
