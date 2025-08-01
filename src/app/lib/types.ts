@@ -45,7 +45,7 @@ export interface PromptStyle {
 }
 
 export interface WritingRequest {
-  promptStyle: PromptStyle;
+  prompt?: string;
   topic: string;
   keywords: string[];
   wordCount: number;

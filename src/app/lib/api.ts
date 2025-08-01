@@ -87,10 +87,10 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
 
 export async function generateContent(request: WritingRequest): Promise<ApiResponse> {
   try {
-    const { promptStyle, topic, keywords, wordCount, llmApiUrl, llmApiKey, model } = request;
+    const { prompt, topic, keywords, wordCount, llmApiUrl, llmApiKey, model } = request;
     
     // Format the prompt template
-    const promptTemplate = formatPromptTemplate(promptStyle, topic, keywords, wordCount);
+    const promptTemplate = formatPromptTemplate(topic, keywords, wordCount, prompt);
 
     const data = await generate({
       apiUrl: llmApiUrl,
@@ -171,23 +171,20 @@ export async function generateOcr(request: OcrRequest): Promise<OcrResponse> {
 }
 
 export function formatPromptTemplate(
-  style: PromptStyle, 
   topic: string, 
   keywords: string[], 
-  wordCount: number
+  wordCount: number,
+  prompt?: string
 ): string {
-  // Convert the style object to a formatted JSON string
-  const styleJson = JSON.stringify(style, null, 4);
-  
   // Format the keywords as a comma-separated list
   const keywordsStr = keywords.join('、');
   
   // Construct the complete prompt
-  return `${styleJson}
+  return `${prompt || ''}
 
 ---
 遵循以上风格为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。
-关键词：${keywordsStr}`;
+关键词：${keywordsStr}，不需要任何解释`;
 }
 
 // 文章润色API

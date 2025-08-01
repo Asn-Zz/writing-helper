@@ -1,61 +1,16 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { PromptStyle, WritingRequest } from '../lib/types';
+import { WritingRequest } from '../lib/types';
 import { generateContent, exportToMarkdown } from '../lib/api';
-import PromptForm from './PromptForm';
 import MarkdownEditor from './MarkdownEditor';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 
-// Default prompt style template
-const defaultPromptStyle: PromptStyle = {
-  "style_summary": "质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀",
-  "language": {
-    "sentence_pattern": ["散文化的笔触，文字自然不造作", "营造场景叙事引人入胜"],
-    "word_choice": {
-      "formality_level": 3,
-      "preferred_words": [ "家乡", "小时候"],
-      "avoided_words": ["华丽辞藻", "生僻字"]
-    },
-    "rhetoric": ["回忆式叙述", "细节描写", "对比手法"]
-  },
-  "structure": {
-    "paragraph_length": "中等偏长，200-300字",
-    "transition_style": "以赶海的记忆和时光流逝进行过渡，今夕对比",
-    "hierarchy_pattern": "以时空为经,以物为纬"
-  },
-  "narrative": {
-    "perspective": "第一人称回忆视角",
-    "time_sequence": "现在与过去交错",
-    "narrator_attitude": "怀旧而理性"
-  },
-  "emotion": {
-    "intensity": 3,
-    "expression_style": "含蓄内敛",
-    "tone": "温情怀旧"
-  },
-  "thinking": {
-    "logic_pattern": "由物及事及情",
-    "depth": 4,
-    "rhythm": "舒缓平和"
-  },
-  "uniqueness": {
-    "signature_phrases": ["我们那里", "小时候"],
-    "imagery_system": ["赶海", "渔村", "童年"]
-  },
-  "cultural": {
-    "allusions": ["典故适度", "穿插回忆"],
-    "knowledge_domains": ["饮食文化", "赶海经历", "乡愁文学"]
-  },
-  "rhythm": {
-    "syllable_pattern": "自然流畅",
-    "pause_pattern": "长短句结合",
-    "tempo": "从容不迫"
-  }
-};
+const defaultPromptStyle = "质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀";
 
 export default function WritingAssistant() {
-  const [promptStyle, setPromptStyle] = useState<PromptStyle>(defaultPromptStyle);
+  const [prompt, setPrompt] = useState<string>(defaultPromptStyle);
+  const [useCustomPrompt, setUseCustomPrompt] = useState<boolean>(false);
   const [topic, setTopic] = useState<string>('儿时赶海');
   const [keywords, setKeywords] = useState<string>('浙江海边、小时候、渔村、温暖、质朴');
   const [wordCount, setWordCount] = useState<number>(800);
@@ -71,7 +26,6 @@ export default function WritingAssistant() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
-  const [showPromptEditor, setShowPromptEditor] = useState<boolean>(false);
   const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
 
   const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,10 +50,10 @@ export default function WritingAssistant() {
         llmApiKey: apiConfig.apiKey,
         llmApiUrl: apiConfig.apiUrl,
         model: apiConfig.model,
-        promptStyle,
         topic,
         keywords: keywords.split('、'),
-        wordCount
+        wordCount,
+        ...(useCustomPrompt && { prompt }),
       };
 
       // 显示请求开始信息
@@ -228,7 +182,6 @@ export default function WritingAssistant() {
                 {/* Prompt Style Editor */}
                 <div 
                   className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center">
                     <h3 className="font-medium text-gray-700 flex items-center">
@@ -238,26 +191,27 @@ export default function WritingAssistant() {
                       </svg>
                       提示词风格
                     </h3>
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium transition duration-150 ease-in-out"
-                      onClick={(e) => {
-                        e.preventDefault(); // 阻止可能的表单提交
-                        e.stopPropagation(); // 阻止事件冒泡
-                        setShowPromptEditor(!showPromptEditor);
-                      }}
-                    >
-                      {showPromptEditor ? '收起编辑器' : '展开编辑器'}
-                    </button>
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                          checked={useCustomPrompt}
+                          onChange={(e) => setUseCustomPrompt(e.target.checked)}
+                        />
+                        <span className="text-sm text-gray-700">自定义风格</span>
+                      </label>
+                    </div>
                   </div>
 
-                  {showPromptEditor && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <PromptForm 
-                        initialStyle={promptStyle} 
-                        onStyleChange={setPromptStyle} 
-                      />
-                    </div>
+                  {useCustomPrompt && (
+                    <textarea
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="请输入您期望的写作风格，例如：质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀"
+                    />
                   )}
                 </div>
                 
