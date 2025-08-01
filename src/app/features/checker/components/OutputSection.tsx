@@ -184,13 +184,13 @@ export default function OutputSection({
                 <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mr-3">
                     <FaPlay className="text-purple-500" />
                 </div>
-                <div className="flex items-center justify-between" onClick={() => setShowOutput(prev => !prev)} >
+                <div className="flex-1 flex items-center justify-between" onClick={() => setShowOutput(prev => !prev)} >
                     <span className='text-xl font-semibold'>内容生成</span>
-                    <span className='ml-3 cursor-pointer'>{showOutput ? '隐藏' : '展示'}</span>
+                    <span className='ml-3 cursor-pointer text-gray-600'>{showOutput ? '隐藏' : '展开'}</span>
                 </div>
             </div>
 
-            {showOutput && <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            {showOutput && <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div>
                     <h3 className="text-lg font-medium mb-3 text-gray-800 flex items-center"><FaVolumeUp className="mr-2 text-green-500" />文本转语音</h3>
                     <div className="space-y-3">

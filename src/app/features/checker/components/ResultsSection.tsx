@@ -3,7 +3,7 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { toPng } from 'html-to-image';
 import {
-    FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, FaEyeSlash, FaEye, FaUndo, FaImage
+    FaCheck, FaMagic, FaLightbulb, FaCheckCircle, FaListUl, FaArrowRight, FaTimes, FaEyeSlash, FaEye, FaUndo, FaImage, FaSearch
 } from 'react-icons/fa';
 import { Issue, ResultSegment, IssueCategory } from '../types';
 
@@ -39,6 +39,27 @@ export default function ResultsSection({
 }: ResultsSectionProps) {
     const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
     const [showIgnored, setShowIgnored] = useState(true);
+    const [searchPopup, setSearchPopup] = useState<{ visible: boolean; x: number; y: number; text: string } | null>(null);
+
+    const handleTextSelection = useCallback(() => {                                                                
+        const selection = window.getSelection();                                                                   
+        const selectedText = selection?.toString().trim();                                                         
+        const resultArea = document.getElementById('result-text-area');   
+        
+        if (selectedText && selection && resultArea) {                                                             
+            const range = selection.getRangeAt(0);                                                                 
+            const rect = range.getBoundingClientRect();                                                            
+            const containerRect = resultArea.getBoundingClientRect();                                             
+            setSearchPopup({                                                                                      
+                visible: true,                                                                                     
+                x: rect.left - containerRect.left + rect.width / 2 - 18, // Adjust for icon size                   
+                y: rect.top - containerRect.top - 40, // Position above selection                                  
+                text: selectedText,                                                                                
+            });                                                                                                    
+        } else {                                                                                                   
+            setSearchPopup(null);                                                                                  
+        }                                                                                                          
+    }, []);
 
     const getSafeCategory = useCallback((category: string | undefined | null): IssueCategory => {
         if (category && Object.prototype.hasOwnProperty.call(categoryConfig, category)) {
@@ -244,7 +265,19 @@ export default function ResultsSection({
                     </div>
                 )}
 
-                <div id="result-text-area" className="p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 min-h-[150px] mb-6">
+                <div id="result-text-area" onMouseUp={handleTextSelection} className="relative p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 min-h-[150px] mb-6">
+                    {searchPopup?.visible && (
+                        <a 
+                            href={`https://cn.bing.com/search?q=${encodeURIComponent(searchPopup.text)}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="absolute z-10 bg-white border border-gray-300 rounded-full p-2 shadow-lg hover:bg-gray-100"
+                            style={{ left: searchPopup.x, top: searchPopup.y }}
+                            onMouseDown={(e) => e.preventDefault()}
+                        >
+                            <FaSearch className="text-blue-500" />
+                        </a>
+                    )}
                     {resultSegments.map((segment, index) =>
                         segment.type === 'text' ? (
                             <span key={index}>{segment.content}</span>
@@ -270,17 +303,6 @@ export default function ResultsSection({
                                                 <FaTimes />
                                             </button>
                                         </div>
-                                    </div>
-                                )}
-                                {segment.issue!.ignored && (
-                                    <div className="suggestion-popup">
-                                        <div className="mb-2 text-sm text-gray-600">此问题已忽略。</div>
-                                        <button
-                                            onClick={() => unignoreSuggestion(segment.issue!.id)}
-                                            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm w-full"
-                                        >
-                                            撤销忽略
-                                        </button>
                                     </div>
                                 )}
                             </span>
