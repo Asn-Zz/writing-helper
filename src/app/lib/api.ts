@@ -102,6 +102,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
                 }
             }
         }
+        content = content.replace(/```json\s*|```/g, '').trim();
         return { content };
       } else {
         const data = await proxyResponse.json();      
