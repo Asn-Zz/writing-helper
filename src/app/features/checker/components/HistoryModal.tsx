@@ -73,7 +73,7 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
             {showHistory && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowHistory(false)} style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
                 <div
-                    className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4"
+                    className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="p-6 border-b border-gray-200">
@@ -87,7 +87,7 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
                             </span>
                         </h3>
                     </div>
-                    <div className="p-6 max-h-96 overflow-y-auto">
+                    <div className="p-6 max-h-100 overflow-y-auto">
                         {history.length === 0 ? (
                             <p className="text-gray-500">暂无历史记录</p>
                         ) : (
