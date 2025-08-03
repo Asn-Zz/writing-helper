@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import eventBus from '@/app/lib/eventBus';
 import InputSection from './components/InputSection';
 import ResultsSection from './components/ResultsSection';
 import OutputSection from './components/OutputSection';
 import AboutSection from './components/AboutSection';
-import { Issue } from './types';
+import HistoryModal from './components/HistoryModal';
+import { Issue, HistoryEntry } from './types';
 import './style.css';
 
 const PdfViewer = dynamic(() => import('./components/PdfViewer'), { ssr: false });
@@ -27,8 +29,20 @@ export default function CheckerEditor() {
             if (pdfPreviewUrl) {
                 URL.revokeObjectURL(pdfPreviewUrl);
             }
-        };        
+        };
     }, [pdfPreviewUrl]);
+
+    const handleRestore = (entry: HistoryEntry) => {
+        setInputText(entry.text);
+        setOriginalTextForIssues(entry.text);
+        setIssues(entry.issues);
+        setShowResults(true);
+        setApiError(null);
+    };
+
+    const addToHistory = (text: string, issues: Issue[]) => {
+        eventBus.emit('history-added', text, issues);
+    };
 
     return (
         <div className="container mx-auto">
@@ -43,6 +57,7 @@ export default function CheckerEditor() {
                 setApiError={setApiError}
                 setOriginalTextForIssues={setOriginalTextForIssues}
                 setPdfPreviewUrl={setPdfPreviewUrl}
+                addToHistory={addToHistory}
             />
 
             {pdfPreviewUrl && (
@@ -87,6 +102,8 @@ export default function CheckerEditor() {
             />
 
             <AboutSection />
+
+            <HistoryModal onRestore={handleRestore} />
         </div>
     );
 }

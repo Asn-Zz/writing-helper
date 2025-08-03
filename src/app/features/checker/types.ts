@@ -35,3 +35,9 @@ export interface Thesaurus {
     corrections: Correction[];
     enabled: boolean;
 }
+
+export interface HistoryEntry {
+    text: string;
+    issues: Issue[];
+    timestamp: string;
+}

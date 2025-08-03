@@ -25,6 +25,7 @@ interface InputSectionProps {
     setApiError: (error: string | null) => void;
     setOriginalTextForIssues: (text: string) => void;
     setPdfPreviewUrl: (url: string | null) => void;
+    addToHistory: (text: string, issues: Issue[]) => void;
 }
 
 export default function InputSection({
@@ -38,6 +39,7 @@ export default function InputSection({
     setApiError,
     setOriginalTextForIssues,
     setPdfPreviewUrl,
+    addToHistory
 }: InputSectionProps) {
     const charCount = useMemo(() => inputText.length, [inputText]);
 
@@ -136,7 +138,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 
             setIssues(processedIssues.sort((a, b) => a.start - b.start));
             setShowResults(true);
-
+            addToHistory(inputText, processedIssues);
         } catch (error: any) {
             setApiError(error.message || '发生未知错误');
             setShowResults(false);
@@ -153,7 +155,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 
     const compressText = useCallback(() => {
         if (!inputText.trim()) return;
-        setInputText(inputText.replace(/(\r\n|\r|\n){2,}/g, '\n'));
+        setInputText(inputText.replace(/((\r\n|\r|\n)){2,}/g, '\n'));
     }, [inputText, setInputText]);
     
     const loadExample = useCallback(() => {
