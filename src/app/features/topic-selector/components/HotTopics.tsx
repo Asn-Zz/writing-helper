@@ -29,7 +29,7 @@ type SortOrder = 'asc' | 'desc';
 interface AiAnalysis {
     trend?: string;
     public_opinion?: string;
-    top5?: { title: string; reason: string }[];
+    topics?: { title: string; reason: string }[];
     suggestion?: { suggestion: string; reason: string }[];
     error?: string;
 }
@@ -141,7 +141,7 @@ export default function HotTopics() {
 分析要求:
 1.  **整体趋势分析 (trend)**: 总结当前热门话题榜单所反映的社会、文化或行业整体趋势。
 2.  **主流情绪与观点 (public_opinion)**: 基于话题内容，分析当前网民的主流情绪、核心观点或争论焦点。
-3.  **Top 5 话题解读 (top5)**: 选出榜单中最具影响力或讨论价值的5个话题，深入解读其爆火原因及背后反映的社会心态。请包含 title 和 reason 字段。
+3.  **话题解读 (topics)**: 选出榜单中最具影响力或讨论价值的5个话题，深入解读其爆火原因及背后反映的社会心态。请包含 title 和 reason 字段。
 4.  **内容创作与营销建议 (suggestion)**: 基于以上分析，为内容创作者或品牌营销人员提出1-3条可操作的选题或营销切入点建议。每条建议包含 suggestion (建议内容) 和 reason (详细理由) 字段。
 
 请确保输出是**纯粹的JSON对象**，不包含任何额外的解释或markdown标记。
@@ -268,7 +268,7 @@ ${JSON.stringify(dataSnippet, null, 2)}
                             <div className="space-y-3 text-gray-800 text-sm">
                                 {aiAnalysis.trend && <div><span className="font-semibold"><FaFire className="inline text-red-400 mr-1" /> 整体趋势：</span><p className="ml-5 whitespace-pre-line">{aiAnalysis.trend}</p></div>}
                                 {aiAnalysis.public_opinion && <div><span className="font-semibold"><FaUsers className="inline text-green-400 mr-1" /> 主流观点：</span><p className="ml-5 whitespace-pre-line">{aiAnalysis.public_opinion}</p></div>}
-                                {aiAnalysis.top5 && <div><span className="font-semibold"><FaTrophy className="inline text-yellow-400 mr-1" /> TOP5 解读：</span><ol className="list-decimal pl-8 mt-1 space-y-1">{aiAnalysis.top5.map((item, index) => <li key={index}><strong>{item.title}</strong> - {item.reason}</li>)}</ol></div>}
+                                {aiAnalysis.topics && <div><span className="font-semibold"><FaTrophy className="inline text-yellow-400 mr-1" /> TOP5 解读：</span><ol className="list-decimal pl-8 mt-1 space-y-1">{aiAnalysis.topics.map((item, index) => <li key={index}><strong>{item.title}</strong> - {item.reason}</li>)}</ol></div>}
                                 {aiAnalysis.suggestion && <div><span className="font-semibold"><FaLightbulb className="inline text-blue-400 mr-1" /> 内容建议：</span><ul className="list-disc pl-8 mt-1 space-y-1">{aiAnalysis.suggestion.map((item, index) => <li key={index}><strong>{item.suggestion}</strong> - {item.reason}</li>)}</ul></div>}
                                 {aiAnalysis.error && <div className="text-red-500"><FaRobot className="inline mr-1" /> AI分析出错: {aiAnalysis.error}</div>}
                             </div>

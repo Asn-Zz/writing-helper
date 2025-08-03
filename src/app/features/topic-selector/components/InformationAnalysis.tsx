@@ -28,7 +28,7 @@ interface InfoItem {
 interface AiAnalysis {
     trend?: string;
     user_interest?: string;
-    top5?: { title: string; reason: string }[];
+    topics?: { title: string; reason: string }[];
     suggestion?: { suggestion: string; reason: string }[];
     error?: string;
 }
@@ -143,7 +143,7 @@ export default function InformationAnalysis() {
 分析要求:
 1.  **当前热点趋势 (trend)**: 总结当前资讯榜单反映出的核心热点事件、话题或领域。
 2.  **用户兴趣洞察 (user_interest)**: 基于数据推断当前用户的关注点和兴趣方向。
-3.  **Top 5 资讯点评 (top5)**: 选出榜单中最具代表性的5条资讯，为每条提供上榜理由或看点分析。请包含 title 和 reason 字段。
+3.  **资讯点评 (topics)**: 选出榜单中最具代表性的5条资讯，为每条提供上榜理由或看点分析。请包含 title 和 reason 字段。
 4.  **内容创作建议 (suggestion)**: 基于以上分析，提出1-3条具体的内容创作方向或选题建议。每条建议包含 suggestion (建议内容) 和 reason (详细理由) 字段。
 
 请确保输出是**纯粹的JSON对象**，不包含任何额外的解释或markdown标记。
@@ -335,11 +335,11 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                         <p className="ml-5 whitespace-pre-line">{aiAnalysis.user_interest}</p>
                                     </div>
                                 )}
-                                {aiAnalysis.top5 && (
+                                {aiAnalysis.topics && (
                                     <div>
                                         <span className="font-semibold"><FaTrophy className="inline text-yellow-400 mr-1" /> TOP5 点评：</span>
                                         <ol className="list-decimal pl-8 mt-1 space-y-1">
-                                            {aiAnalysis.top5.map((item, index) => (
+                                            {aiAnalysis.topics.map((item, index) => (
                                                 <li key={index}><strong>{item.title}</strong> - {item.reason}</li>
                                             ))}
                                         </ol>
