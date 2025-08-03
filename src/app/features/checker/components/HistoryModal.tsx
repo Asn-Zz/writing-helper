@@ -1,18 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaHistory } from 'react-icons/fa';
+import { FaHistory, FaTrash } from 'react-icons/fa';
 import eventBus from '@/app/lib/eventBus';
+import { useLocalStorage } from '@/app/hooks/useLocalStorage';
 import { Issue, HistoryEntry } from '../types';
 
 interface HistoryModalProps {
     onRestore: (entry: HistoryEntry) => void;
-}
+}   
 
 export default function HistoryModal({ onRestore }: HistoryModalProps) {
-    const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [showHistory, setShowHistory] = useState(false);
-    const storeKey = 'checkerHistory';
+    const [history, setHistory] = useLocalStorage<HistoryEntry[]>('checkerHistory', []);
 
     const addToHistory = useCallback((text: string, issues: Issue[]) => {
         if (!text.trim()) return;
@@ -21,37 +21,27 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
             issues,
             timestamp: new Date().toISOString(),
         };
-        setHistory(prevHistory => {
-            const updatedHistory = [newEntry, ...prevHistory].slice(0, 10);
-            try {
-                localStorage.setItem(storeKey, JSON.stringify(updatedHistory));
-            } catch (error) {
-                console.error("Failed to save history to localStorage", error);
-            }
-            return updatedHistory;
-        });
+        const updatedHistory = [newEntry, ...history].slice(0, 10);
+
+        setHistory(updatedHistory);
     }, []);
 
     useEffect(() => {
-        try {
-            const savedHistory = localStorage.getItem(storeKey);
-            if (savedHistory) {
-                setHistory(JSON.parse(savedHistory));
-            }
-        } catch (error) {
-            console.error("Failed to load history from localStorage", error);
-        }
-
         eventBus.on('history-added', addToHistory);
     }, [addToHistory]);
 
-    const deleteHistory = useCallback(() => {
-        if (window.confirm("确定要清空历史记录吗？")) {
-            localStorage.removeItem(storeKey);
-            setHistory([]);
-            setShowHistory(false);
+    const deleteHistory = useCallback((entry?: HistoryEntry) => {
+        if (entry) {
+            const updatedHistory = history.filter(h => h !== entry);
+            
+            setHistory(updatedHistory);
+        } else {
+            if (window.confirm("确定要清空历史记录吗？")) {
+                setHistory([]);
+                setShowHistory(false);
+            }
         }
-    }, []);
+    }, [history, setHistory]);
 
     const onRestoreHistory = useCallback((entry: HistoryEntry) => {
         onRestore(entry);
@@ -80,7 +70,7 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
                         <h3 className="text-xl font-semibold text-gray-800">
                             检查历史
                             <span
-                                onClick={deleteHistory}
+                                onClick={() => deleteHistory()}
                                 className="text-base ml-2 text-red-600 cursor-pointer hover:text-red-800 transition-colors duration-200"
                             >
                                 清空
@@ -96,9 +86,15 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
                                     <li key={index} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer"  onClick={() => onRestoreHistory(entry)}>
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="text-sm text-gray-500 mb-2">
-                                                    {new Date(entry.timestamp).toLocaleString()}
-                                                </p>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="flex space-x-2 text-sm text-gray-500">
+                                                        <span>{new Date(entry.timestamp).toLocaleString()} </span>
+                                                        <span>字数：{entry.text.length} </span>
+                                                        <span>问题：{entry.issues.filter(i => !i.ignored).length}</span>
+                                                    </p>
+
+                                                    <FaTrash className="text-red-600 cursor-pointer hover:text-red-800 transition-colors duration-200" onClick={() => deleteHistory(entry)} />
+                                                </div>
                                                 <p className="text-gray-700 line-clamp-2">{entry.text}</p>
                                             </div>
                                         </div>

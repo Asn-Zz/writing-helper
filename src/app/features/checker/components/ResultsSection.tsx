@@ -295,7 +295,7 @@ export default function ResultsSection({
                             </a>
 
                             <button 
-                                onClick={() => eventBus.emit('openThesaurusModal')}
+                                onClick={() => eventBus.emit('openThesaurusModal', searchPopup.text)}
                                 className="px-4 py-2 hover:bg-gray-100"
                                 title="打开词库"
                             >
@@ -342,7 +342,7 @@ export default function ResultsSection({
                         </summary>
                         <div className="mt-4">
                             <div className="flex items-center justify-between">
-                                <div>
+                                <div className='flex-1 flex flex-nowrap overflow-x-auto'>
                                     {issueCategories.map(category => {
                                         const count = groupedIssues[category]?.length || 0;
                                         if (count === 0 && category !== 'all') return null;
@@ -361,13 +361,6 @@ export default function ResultsSection({
 
                                 <div className='flex items-center gap-2'>
                                     <button
-                                        onClick={() => setIsScrollable(!isScrollable)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-                                    >
-                                        {isScrollable ? '展开全部' : '收起'}
-                                    </button>
-
-                                    <button
                                         onClick={handleExportImage}
                                         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition flex items-center"
                                         title="导出修改建议为图片"
@@ -378,6 +371,7 @@ export default function ResultsSection({
                                 </div>
                             </div>
                         </div>
+
                         <div id="result-list-area" className="mt-3 border border-gray-200 rounded-lg divide-y divide-gray-200 overflow-y-auto" style={{ height: isScrollable ? '500px' : 'auto' }}>
                             {filteredIssues.map((issue) => {
                                 const category = getSafeCategory(issue.category);
@@ -435,6 +429,14 @@ export default function ResultsSection({
                                 </div>
                             )})}
                         </div>
+
+
+                        <p
+                            onClick={() => setIsScrollable(!isScrollable)}
+                            className="text-center text-sm font-medium text-gray-500 hover:text-gray-700 mt-4 cursor-pointer"
+                        >
+                            {isScrollable ? '展开全部' : '收起'}
+                        </p>
                     </details>
                 )}
             </div>

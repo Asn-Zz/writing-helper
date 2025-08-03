@@ -116,7 +116,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
 
     return (
         <div className="fixed inset-0 z-50 flex justify-center items-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onClick={onClose}>
-            <div className="bg-slate-50 rounded-lg shadow-xl w-full max-w-4xl flex flex-col h-[90vh] max-h-[800px]" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-50 rounded-lg shadow-xl w-full max-w-4xl flex flex-col h-[80vh] max-h-[700px]" onClick={e => e.stopPropagation()}>
                 {/* Modal Header */}
                 <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-lg flex-shrink-0">
                     <h3 className="text-xl font-semibold text-slate-800">词库管理 <span className="text-base text-red-400 cursor-pointer ml-2" onClick={resetThesaurus}>(重置)</span></h3>
@@ -129,7 +129,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                 <div className="flex-grow grid grid-cols-12 overflow-hidden">
                     {/* Left Panel: Groups */}
                     <div className="col-span-4 flex flex-col gap-4 border-r border-slate-200 p-6">
-                        <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">词库分组 ({thesauruses.length})</h4>
+                        {/* <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">词库分组 ({thesauruses.length})</h4> */}
                         <div className="flex gap-2 flex-shrink-0">
                             <input
                                 type="text"
@@ -161,7 +161,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                                                 setThesauruses(updatedThesauruses);
                                             }}
                                         />
-                                        <span className="flex-grow truncate pr-2">{t.name}</span>
+                                        <span className="flex-grow truncate pr-2">{t.name}({t.corrections.length})</span>
                                     </div>
                                     <button onClick={(e) => {
                                         e.stopPropagation();
@@ -178,7 +178,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                     <div className="col-span-8 flex flex-col gap-4 p-6">
                         {selectedThesaurus ? (
                             <>
-                                <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">{selectedThesaurus.name}({selectedThesaurus.corrections.length})</h4>
+                                {/* <h4 className="text-lg font-semibold text-slate-700 flex-shrink-0">{selectedThesaurus.name}({selectedThesaurus.corrections.length})</h4> */}
                                 {/* Add Correction Form */}
                                 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
                                     <div className="grid grid-cols-2 gap-3 mb-3">

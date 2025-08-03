@@ -73,7 +73,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
             <div className="flex flex-shrink-0 items-center">
               <span className="text-xl font-bold text-gray-900">AI 编辑工作室</span>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 md:flex md:space-x-8">
               {featureLinks.map((link) => {
                 const isActive = pathname === link.href || 
                   (link.children?.some(child => child.href === pathname) ?? false);
@@ -170,7 +170,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
             </div>
           
             {/* 移动端菜单按钮 */}
-            <div className="sm:hidden flex items-center">
+            <div className="md:hidden flex items-center">
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
@@ -198,7 +198,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
       </div>
       
       {/* 移动端导航菜单 */}
-      <div className={`sm:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`}>
+      <div className={`${mobileMenuOpen ? 'block' : 'hidden'}`}>
         <div className="space-y-1 px-2 pb-3 pt-2">
           {featureLinks.map((link) => {
             const isActive = pathname === link.href || 
