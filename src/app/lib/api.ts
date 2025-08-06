@@ -190,7 +190,7 @@ export async function generateOcr(request: OcrRequest): Promise<OcrResponse> {
                     content: [
                         {
                             type: "text",
-                            text: "只提取文本，不需要任何解释",
+                            text: "提取文本优化排版，数学公式使用LaTeX，不需要任何解释",
                         },
                         {
                             type: "image_url",

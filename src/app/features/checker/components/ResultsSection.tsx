@@ -184,7 +184,7 @@ export default function ResultsSection({
 
         toPng(node, {
             cacheBust: true,
-            pixelRatio: 3,
+            pixelRatio: 2,
             backgroundColor: '#fff',
         })
             .then((dataUrl) => {

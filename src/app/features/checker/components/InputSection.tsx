@@ -8,6 +8,7 @@ import {
 import { ApiConfigProps } from '@/app/components/ApiSettingBlock';
 import FileUpload from '@/app/components/FileUpload';
 import { generate } from '@/app/lib/api';
+import { request } from '@/app/lib/request';
 import ThesaurusManager from './ThesaurusManager';
 import { Issue, Thesaurus } from '../types';
 
@@ -181,26 +182,17 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                 setIsLoading(true);
                 setApiError(null);
                 try {
-                    const body = { url: pastedText, formats: ['markdown'] }
-                    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
+                    const body = { url: pastedText, formats: ['markdown'] };
+                    const url = 'https://api.firecrawl.dev/v1/scrape';
+                    const res = await request.post<{ data?: Record<string, any>}>(url, body, {
+                        headers: {
                             'Authorization': `Bearer ${apiKey}`,
                         },
-                        body: JSON.stringify(body),
                     });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ message: '抓取失败' }));
-                        throw new Error(errorData.message || '无法抓取网页内容');
-                    }
-
-                    const data = await response.json();
-                    const content = data?.data?.markdown || data?.data?.content;
+                    const content = res?.data?.markdown || res?.data?.content || '';
                     setInputText(content);
                 } catch (error: any) {
-                    setApiError(error.message);
+                    setApiError(error);
                 } finally {
                     setIsLoading(false);
                 }

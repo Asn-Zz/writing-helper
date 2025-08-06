@@ -15,10 +15,12 @@
 - `NEXT_PUBLIC_OLLAMA_API_URL` - Ollama API地址（默认为：http://localhost:11434/api/generate）
 - `NEXT_PUBLIC_OLLAMA_MODEL` - 使用的模型名称（默认为：llama2）
 
-### 自定义API配置
-- `NEXT_PUBLIC_CUSTOM_API_KEY` - 自定义API密钥
-- `NEXT_PUBLIC_CUSTOM_API_URL` - 自定义API地址
-- `NEXT_PUBLIC_CUSTOM_MODEL` - 自定义模型名称
+### 安全配置
+- `NEXT_PUBLIC_AUTH_TOKEN` - 用于保护应用的访问令牌
+
+### 其他配置
+- `NEXT_PUBLIC_FIRE_KEY` - 用于特定功能的API密钥
+
 
 ## 使用方法
 
