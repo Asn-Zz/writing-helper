@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { FaBook, FaNewspaper, FaFire } from 'react-icons/fa6';
+import { FaBook, FaNewspaper, FaFire, FaRankingStar } from 'react-icons/fa6';
 import BookAnalysis from './components/BookAnalysis';
 import InformationAnalysis from './components/InformationAnalysis';
 import HotTopics from './components/HotTopics';
+import HotLists from './components/HotLists';
 
-type AppMode = 'books' | 'information' | 'topic';
+type AppMode = 'books' | 'information' | 'topic' | 'hot-lists';
 
 export default function TopicSelector() {
     const [appMode, setAppMode] = useState<AppMode>('books');
@@ -33,6 +34,12 @@ export default function TopicSelector() {
             name: '热门话题',
             icon: <FaFire className="inline mr-2" />,
             component: <HotTopics />
+        },
+        {
+            id: 'hot-lists',
+            name: '热门榜单',
+            icon: <FaRankingStar className="inline mr-2" />,
+            component: <HotLists />
         }
     ];
 

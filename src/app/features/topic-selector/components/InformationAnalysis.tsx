@@ -17,6 +17,7 @@ type InfoTimeFrame = 'today' | 'weekly' | 'monthly' | null;
 
 interface InfoItem {
     id: string | number;
+    img?: string;
     title: string;
     url?: string;
     desc?: string;
@@ -50,6 +51,7 @@ export default function InformationAnalysis() {
         { id: 'weibo', name: '微博' },
         { id: 'baidu-tieba', name: '百度贴吧' },
         { id: '36kr', name: '36氪' },
+        { id: 'tencent-news', name: '腾讯新闻' }
     ];
 
     const formatCount = useCallback((num: number | string | undefined | null): string => {
@@ -70,6 +72,7 @@ export default function InformationAnalysis() {
             const hot = Number(item.heat_num || item.hot_num || item.hot || 0);
             return {
                 id: item.id || item.url || `${item.title}-${index}`,
+                img: item.img || '',
                 title: item.title || '无标题',
                 url: item.url || item.mobile_url || item.www_url,
                 desc: item.desc || item.description || '',
@@ -230,10 +233,9 @@ ${JSON.stringify(dataSnippet, null, 2)}
             const processedItems = processInfoData(rawInfoData);
             if (processedItems.length === 0) {
                 throw new Error('处理后的资讯列表为空。');
-            }
+            } 
             setInfoItems(processedItems);
             setTimeout(() => renderChart(processedItems), 300);
-
         } catch (error: any) {
             console.error("Information Fetch/Process Error:", error);
             setErrorMessage(`资讯数据加载失败: ${error.message}`);
@@ -278,31 +280,38 @@ ${JSON.stringify(dataSnippet, null, 2)}
             {infoItems.length > 0 && !isLoading && !errorMessage && (
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-4 h-150 overflow-y-auto scrollbar-hide">
                     {infoItems.map((item, index) => (
-                        <div key={item.id} className="p-4 rounded-lg bg-white custom-shadow info-item-card flex flex-col justify-between">
-                            <div>
-                                <div className="flex items-start mb-2">
-                                    <span className="text-sm font-bold text-blue-600 mr-2 mt-px">#{index + 1}</span>
-                                    <h3 className="text-base font-semibold text-gray-800 leading-snug flex-1">{item.title}</h3>
-                                </div>
-                                {item.desc && (
-                                    <p className="text-xs text-gray-600 mb-2 line-clamp-2">{item.desc}</p>
-                                )}
-                                <div className="text-xs text-gray-400 mb-2 flex flex-wrap gap-x-3">
-                                    {item.source && (
-                                        <span className="inline-flex items-center"><FaRobot className="mr-1" /> {sourceList.find(s => s.id === item.source)?.name || item.source}</span>
-                                    )}
-                                    {item.hot > 0 && (
-                                        <span className="inline-flex items-center"><FaFire className="mr-1 text-red-500" /> {item.hotFormatted} 热度</span>
+                        <div key={item.id} className="p-4 rounded-lg bg-white custom-shadow info-item-card flex flex-col justify-between relative">
+                            <div className="flex items-center gap-4">
+                                <div className='flex-1'>
+                                    <div className="absolute top-0 left-0 px-4">
+                                        <span className="text-xs font-bold text-blue-600">#{index + 1}</span>
+                                    </div>
+                                    <div className="flex items-start mb-2">
+                                        <h3 className="text-base font-semibold text-gray-800 leading-snug flex-1">{item.title}</h3>
+                                    </div>
+                                    {item.desc && (
+                                        <p className="text-xs text-gray-600 line-clamp-2">{item.desc}</p>
                                     )}
                                 </div>
+
+                                {item.img && <div className='w-[158px] h-[98px] overflow-hidden rounded-lg'>
+                                    <img src={'/api/proxy?url=https://img.rebang.today/' + item.img} alt="" className='w-full h-full object-cover'  />
+                                </div>}
                             </div>
-                            <div className="mt-auto pt-2 border-t border-gray-100">
+                            <div className="text-xs text-gray-400 flex flex-wrap gap-x-3 pt-2 mt-2 border-t border-gray-100">
+                                {item.source && (
+                                    <span className="inline-flex items-center"><FaRobot className="mr-1" /> {sourceList.find(s => s.id === item.source)?.name || item.source}</span>
+                                )}
+                                {item.hot > 0 && (
+                                    <span className="inline-flex items-center"><FaFire className="mr-1 text-red-500" /> {item.hotFormatted} 热度</span>
+                                )}
+
                                 {item.url ? (
                                     <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700 inline-flex items-center">
                                         查看详情 <FaArrowUpRightFromSquare className="ml-1" />
                                     </a>
                                 ) : (
-                                    <span className="text-xs text-gray-400">无链接</span>
+                                    <span>无链接</span>
                                 )}
                             </div>
                         </div>
