@@ -10,7 +10,7 @@ interface HotListItem {
 }
 
 const fetchHotList = async (source: string): Promise<HotListItem[]> => {
-    const response = await fetch(`/api/60s?path=${source}`);
+    const response = await fetch(`/api/bang/${source}?cache=true`);
     if (!response.ok) {
         throw new Error(`请求'${source}'热榜失败 (状态码: ${response.status})`);
     }
@@ -95,11 +95,11 @@ export default function HotLists() {
         if (viewMode === 'list') {
             loadData(activeSource);
         } else if (viewMode === 'grid') {
-            if (Object.keys(allListsData).length === 0) {
+            if (Object.keys(allListsData).length === 0 && !gridError) {
                 loadAllData();
             }
         }
-    }, [viewMode, activeSource, loadData, loadAllData, allListsData]);
+    }, [viewMode, activeSource, loadData, loadAllData, allListsData, gridError]);
 
     return (
         <section className="p-5 rounded-lg custom-shadow bg-white flex flex-col mt-6 no-print">
@@ -156,6 +156,12 @@ export default function HotLists() {
                                 <FaTriangleExclamation className="text-3xl mb-2" />
                                 <p className="font-semibold">加载失败</p>
                                 <p className="text-sm">{error}</p>
+                                <button
+                                    onClick={() => loadData(activeSource)}
+                                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    重试
+                                </button>
                             </div>
                         )}
                         {!isLoading && !error && (
@@ -197,6 +203,12 @@ export default function HotLists() {
                                 <FaTriangleExclamation className="text-3xl mb-2" />
                                 <p className="font-semibold">加载失败</p>
                                 <p className="text-sm">{gridError}</p>
+                                <button
+                                    onClick={() => loadAllData()}
+                                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    重试
+                                </button>
                             </div>
                         )}
                         {!isGridLoading && !gridError && (
