@@ -29,7 +29,7 @@ export default function HotLists() {
     const [listData, setListData] = useState<HotListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+    const [viewMode, setViewMode] = useState<'list' | 'grid' | ''>('');
     const [allListsData, setAllListsData] = useState<Record<string, HotListItem[]>>({});
     const [isGridLoading, setIsGridLoading] = useState(false);
     const [gridError, setGridError] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export default function HotLists() {
     useEffect(() => {
         if (viewMode === 'list') {
             loadData(activeSource);
-        } else {
+        } else if (viewMode === 'grid') {
             if (Object.keys(allListsData).length === 0) {
                 loadAllData();
             }
@@ -137,6 +137,12 @@ export default function HotLists() {
             )}
 
             <div className={`overflow-y-auto scrollbar-hide ${viewMode === 'list' ? 'h-[41rem]' : ''}`}>
+                {viewMode === '' && (
+                    <div className="flex justify-center items-center h-full">
+                        <span className="ml-3 text-gray-500">点击列表或网格按钮选择查看模式</span>
+                    </div>
+                )}
+
                 {viewMode === 'list' && (
                     <>
                         {isLoading && (
