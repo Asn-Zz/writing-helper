@@ -6,26 +6,28 @@ import { FaBilibili, FaWeibo, FaZhihu, FaRegNewspaper, FaCat, FaSpinner, FaArrow
 // Types
 interface HotListItem {
     title: string;
+    hot: string;
     link: string;
 }
 
 const fetchHotList = async (source: string): Promise<HotListItem[]> => {
-    const response = await fetch(`/api/bang/${source}?cache=true`);
+    const response = await fetch(`https://api.vvhan.com/api/hotlist/${source}`);
     if (!response.ok) {
         throw new Error(`请求'${source}'热榜失败 (状态码: ${response.status})`);
     }
     const result = await response.json();
-    if (result.code !== 200 || !Array.isArray(result.data)) {
+    if (!result.success || !Array.isArray(result.data)) {
         throw new Error(`API返回无效数据: ${result.msg || '未知错误'}`);
     }
     return result.data.map((item: any) => ({
         title: item.title,
+        hot: item.hot,
         link: item.url || item.link || '#',
     }));
 };
 
 export default function HotLists() {
-    const [activeSource, setActiveSource] = useState('bilibili');
+    const [activeSource, setActiveSource] = useState('bili');
     const [listData, setListData] = useState<HotListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -35,12 +37,12 @@ export default function HotLists() {
     const [gridError, setGridError] = useState<string | null>(null);
 
     const sources = useMemo(() => [
-        { id: 'bilibili', name: 'Bilibili', icon: <FaBilibili /> },
-        { id: 'weibo', name: '微博', icon: <FaWeibo /> },
-        { id: 'zhihu', name: '知乎', icon: <FaZhihu /> },
-        { id: 'douyin', name: '抖音', icon: <FaVideo /> },
+        { id: 'bili', name: 'Bilibili', icon: <FaBilibili /> },
+        { id: 'wbHot', name: '微博', icon: <FaWeibo /> },
+        { id: 'zhihuHot', name: '知乎', icon: <FaZhihu /> },
+        { id: 'douyinHot', name: '抖音', icon: <FaVideo /> },
         { id: 'toutiao', name: '头条', icon: <FaRegNewspaper /> },
-        { id: 'baidu', name: '百度', icon: <FaCat /> },
+        { id: 'baiduRD', name: '百度', icon: <FaCat /> },
     ], []);
 
     const loadData = useCallback(async (source: string) => {
@@ -138,8 +140,9 @@ export default function HotLists() {
 
             <div className={`overflow-y-auto scrollbar-hide ${viewMode === 'list' ? 'h-[41rem]' : ''}`}>
                 {viewMode === '' && (
-                    <div className="flex justify-center items-center h-full">
-                        <span className="ml-3 text-gray-500">点击列表或网格按钮选择查看模式</span>
+                    <div className="flex flex-col gap-2 justify-center items-center h-full">
+                        <span className="ml-3 text-gray-500">点击列表或网格按钮选择查看更多</span>
+                        <img src="https://60s.viki.moe/v2/60s?encoding=image-proxy" alt="" className="w-1/2 max-h-[60rem] object-contain" />
                     </div>
                 )}
 
