@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 export const preferredRegion = [
@@ -12,25 +12,25 @@ export const preferredRegion = [
     "kix1",
 ];
 
-export async function handler(request: Request, { params }: { params: { source: string } }) {
-    const { source } = await params;
-    
-    if (!source) {
-        return NextResponse.json({ error: "Missing 'source' query parameter." }, { status: 400 });
+async function handler(request: NextRequest) {
+    const searchParams = request.nextUrl.searchParams;
+    const path = searchParams.getAll("source");
+    searchParams.delete("source");
+    const params = searchParams.toString();
+        
+    if (!path) {
+        return NextResponse.json({ error: "Missing source query parameter." }, { status: 400 });
     }
 
-    const searchParams = new URL(request.url).searchParams;
-    const targetUrl = `https://api.dao.js.cn/${source}${searchParams ? `?${searchParams.toString()}` : ''}`;
+    const targetUrl = `https://api.dao.js.cn/${path}${params ? `?${params}` : ''}`;
 
     try {      
-        const response = await fetch(targetUrl);
-        const data = await response.json();
-        
-        return NextResponse.json(data, {
-            status: response.status,
-            statusText: response.statusText,
+        const response = await fetch(targetUrl, {
+            headers: {
+                "Content-Type": "application/json",
+            },
         });
-
+        return new NextResponse(response.body, response);
     } catch (error) {
         if (error instanceof Error) {
             return NextResponse.json({ error: 'Failed to fetch from upstream API.', details: error.message }, { status: 502 });
