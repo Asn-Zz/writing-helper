@@ -294,8 +294,8 @@ ${JSON.stringify(dataSnippet, null, 2)}
                                     )}
                                 </div>
 
-                                {item.img && <div className='w-[158px] h-[98px] overflow-hidden rounded-lg'>
-                                    <img src={'/api/proxy?url=https://img.rebang.today/' + item.img} alt="" className='w-full h-full object-cover'  />
+                                {item.img && <div className='w-[10rem] h-[6rem] overflow-hidden rounded-lg bg-gray-100'>
+                                    <img src={'/api/proxy?url=https://img.rebang.today/' + item.img} alt="" className='w-full h-full object-cover' loading="lazy" />
                                 </div>}
                             </div>
                             <div className="text-xs text-gray-400 flex flex-wrap gap-x-3 pt-2 mt-2 border-t border-gray-100">
