@@ -31,7 +31,7 @@ export default function FeatureLayout({
   }, []);
 
   return (
-    <div className="bg-gray-50 flex flex-col">
+    <div className="bg-gray-50 flex flex-col" style={{ minHeight: 'calc(100vh - 4rem)' }}>
       <Navigation isAuthed={isAuthed} onSettingsClick={toggleSettings} />
       
       <main className="flex-1">
