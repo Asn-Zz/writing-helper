@@ -78,6 +78,8 @@ export default function ImageEditor() {
         }
 
         setModel(modelOptions[2]);
+        if (imageUrl.startsWith('http')) { return setUploadImage(imageUrl); }
+
         try {
             let response = await fetch(imageUrl);
             if (!response.ok) {
@@ -98,7 +100,6 @@ export default function ImageEditor() {
             }
             const data = await response.json();
 
-            setContentImages([data.message]);
             setUploadImage(data.message);
         } catch (error) {
             console.error(error);
@@ -161,10 +162,19 @@ export default function ImageEditor() {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const blobUrl = URL.createObjectURL(file);
 
-            setContentImages([blobUrl]);
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/cos-upload', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(res => res.json())
+            .then((res) => {
+                setContentImages([res.message]);
+            });
         }
     };
 
@@ -175,8 +185,6 @@ export default function ImageEditor() {
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
-        setContentImages([]);
-        setUploadImage('');
 
         try {
             const imagePromises = Array.from({ length: numImages }).map(async () => {
