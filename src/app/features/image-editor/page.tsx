@@ -181,7 +181,7 @@ export default function ImageEditor() {
     const generateCoverImage = useCallback(async () => {
         if (isImageLoading || prompt.trim() === '') return;
 
-        const basePrompt = prompt.trim() || '抽象背景';
+        const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
@@ -189,8 +189,13 @@ export default function ImageEditor() {
         try {
             const imagePromises = Array.from({ length: numImages }).map(async () => {
                 const seed = Math.floor(Math.random() * 100000);
-                const payload: Record<string, any> = uploadImage ? { model, image: uploadImage } : { seed, nologo: true, enhance: true, width, height };
-                payload.token = process.env.NEXT_PUBLIC_POLLAI_KEY || '';
+                const payload = { 
+                    nologo: true, 
+                    enhance: true, 
+                    token: process.env.NEXT_PUBLIC_POLLAI_KEY, 
+                    model,
+                    ...(uploadImage ? { image: uploadImage } : { seed, width, height })
+                };
                 const imageUrl = `https://image.pollinations.ai/prompt/${imagePrompt}?${objectToQueryString(payload)}`;
 
                 const response = await fetch(imageUrl);
