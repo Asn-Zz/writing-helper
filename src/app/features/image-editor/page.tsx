@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
+import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { objectToQueryString } from '@/app/lib/utils';
+import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
 
@@ -177,6 +179,16 @@ export default function ImageEditor() {
             });
         }
     };
+
+    const handleDeleteImage = (image: string) => {
+        setContentImages((prevImages) => prevImages.filter((img) => img !== image));
+    };
+
+    const resetImage = () => {
+        setPrompt('');
+        setUploadImage('');
+        setContentImages([]);
+    }
 
     const generateCoverImage = useCallback(async () => {
         if (isImageLoading || prompt.trim() === '') return;
@@ -375,6 +387,17 @@ export default function ImageEditor() {
                                 {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : uploadImage ? '编辑图像' : '生成图像'}
                             </button>
                         </div>
+                        {contentImages.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={resetImage}
+                                    className="bg-gray-200 text-red-600 py-2 px-4 rounded-md hover:bg-gray-300 disabled:opacity-50 flex items-center justify-center flex-grow"
+                                    disabled={isImageLoading}
+                                >
+                                    重置
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column: Image Display */}
@@ -385,42 +408,71 @@ export default function ImageEditor() {
                                     <FaSpinner className="animate-spin mr-2" /> 图像生成中...
                                 </div>
                             ) : contentImages.length > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-                                    {contentImages.map((image, index) => (
-                                        <div className='relative' key={index}>
-                                            <img
-                                                src={image}
-                                                alt={`${prompt || '生成的图像'} ${index + 1}`}
-                                                className={`w-full rounded-lg border border-gray-200 shadow-sm hover:border-blue-600 transition-colors ${uploadImage === image ? '!border-blue-600' : ''}`}
-                                            />
+                                <div className="columns-2 md:columns-3 gap-4">
+                                    <PhotoProvider toolbarRender={({ onScale, scale, onRotate, rotate }) => {
+                                        return (
+                                            <>
+                                                <svg className="PhotoView-Slider__toolbarIcon" width={44} height={44} viewBox="0 0 768 768" onClick={() => onScale(scale + 1)}>
+                                                    <path d="M384 640.5q105 0 180.75-75.75t75.75-180.75-75.75-180.75-180.75-75.75-180.75 75.75-75.75 180.75 75.75 180.75 180.75 75.75zM384 64.5q132 0 225.75 93.75t93.75 225.75-93.75 225.75-225.75 93.75-225.75-93.75-93.75-225.75 93.75-225.75 225.75-93.75zM415.5 223.5v129h129v63h-129v129h-63v-129h-129v-63h129v-129h63z"></path>
+                                                </svg>
+                                                <svg className="PhotoView-Slider__toolbarIcon" width={44} height={44} viewBox="0 0 768 768" onClick={() => onScale(scale - 1)}>
+                                                    <path d="M384 640.5q105 0 180.75-75.75t75.75-180.75-75.75-180.75-180.75-75.75-180.75 75.75-75.75 180.75 75.75 180.75 180.75 75.75zM384 64.5q132 0 225.75 93.75t93.75 225.75-93.75 225.75-225.75 93.75-225.75-93.75-93.75-225.75 93.75-225.75 225.75-93.75zM223.5 352.5h321v63h-321v-63z"></path>
+                                                </svg>
+                                                <svg className="PhotoView-Slider__toolbarIcon" width={44} height={44} fill="white" viewBox="0 0 768 768" onClick={() => onRotate(rotate + 45)}>
+                                                    <path d="M565.5 202.5l75-75v225h-225l103.5-103.5c-34.5-34.5-82.5-57-135-57-106.5 0-192 85.5-192 192s85.5 192 192 192c84 0 156-52.5 181.5-127.5h66c-28.5 111-127.5 192-247.5 192-141 0-255-115.5-255-256.5s114-256.5 255-256.5c70.5 0 135 28.5 181.5 75z"></path>
+                                                </svg>
+                                                <svg className="PhotoView-Slider__toolbarIcon" fill="white" width="44" height="44" viewBox="0 0 768 768" onClick={() => document.documentElement.requestFullscreen()}>
+                                                    <path d="M448.5 160.5h159v159h-63v-96h-96v-63zM544.5 544.5v-96h63v159h-159v-63h96zM160.5 319.5v-159h159v63h-96v96h-63zM223.5 448.5v96h96v63h-159v-159h63z"></path>
+                                                </svg>
+                                            </>
+                                        );
+                                    }}>
+                                        {contentImages.map((image, index) => (
+                                            <div className='relative rounded-lg overflow-hidden mb-4 break-inside-avoid' key={index}>
+                                                <PhotoView src={image}>
+                                                    <img
+                                                        src={image}
+                                                        alt={`${prompt || '生成的图像'} ${index + 1}`}
+                                                        className={`w-full shadow-sm hover:transform hover:scale-105 transition-all duration-300 ${uploadImage === image ? 'border-1 border-blue-500' : ''}`}
+                                                    />
+                                                </PhotoView>
 
-                                            <div className="flex mt-2 gap-4">
-                                                <button
-                                                    onClick={() => handleDownload(image)}
-                                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 cursor-pointer"
-                                                >
-                                                    <FaDownload size={14} />
-                                                    <span className='text-xs'>下载</span>
-                                                </button>
+                                                <div className='absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/10'>
+                                                    <button
+                                                        onClick={() => handleDownload(image)}
+                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <FaDownload size={14} />
+                                                        <span className='text-[10px]'>下载</span>
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => handleImageToPrompt(image)}
-                                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 cursor-pointer"
-                                                >
-                                                    <FaCopy size={14} />
-                                                    <span className='text-xs'>提示词</span>
-                                                </button>
+                                                    <button
+                                                        onClick={() => handleImageToPrompt(image)}
+                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <FaCopy size={14} />
+                                                        <span className='text-[10px]'>提示词</span>
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => handleEditImage(image)}
-                                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 cursor-pointer"
-                                                >
-                                                    <FaEdit size={14} />
-                                                    <span className='text-xs'>{image === uploadImage ? '取消编辑' : '编辑'}</span>
-                                                </button>
+                                                    <button
+                                                        onClick={() => handleEditImage(image)}
+                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <FaEdit size={14} />
+                                                        <span className='text-[10px]'>{image === uploadImage ? '取消编辑' : '编辑'}</span>
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => handleDeleteImage(image)}
+                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <FaTrash size={14} />
+                                                        <span className='text-[10px]'>删除</span>
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </PhotoProvider>
                                 </div>
                             ) : (
                                 <div
