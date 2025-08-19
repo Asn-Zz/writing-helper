@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit } from 'react-icons/fa';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
+import { objectToQueryString } from '@/app/lib/utils';
 
 const DEFAULT_SIZE = 1024;
 
@@ -22,6 +23,10 @@ export default function ImageEditor() {
     const styleOptions = ['默认', '3D卡通', '线稿', '像素', '写实', '水彩', '水墨画', '蜡笔', 'Q版', '钢笔淡彩', '版画'];
     const [style, setStyle] = useState(styleOptions[0]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    const modelOptions = ['flux', 'gptimage', 'kontext'];
+    const [model, setModel] = useState(modelOptions[0]);
+    const [uploadImage, setUploadImage] = useState<string>('');
 
     const handleTranslate = async () => {
         if (!prompt.trim() || isLoading) return;
@@ -64,6 +69,41 @@ export default function ImageEditor() {
             setIsLoading(false);
         }
     };
+
+    const handleEditImage = async (imageUrl: string) => {
+        if (uploadImage === imageUrl) {
+            setModel(modelOptions[0]);
+            setUploadImage('');
+            return;
+        }
+
+        setModel(modelOptions[2]);
+        try {
+            let response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            const fileName = `${prompt.slice(0, 10) || 'image'}-${Date.now()}.png`;
+            const file = new File([blob], fileName, { type: blob.type });               
+
+            const formData = new FormData();
+            formData.append('file', file);
+            response = await fetch('/api/cos-upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            setContentImages([data.message]);
+            setUploadImage(data.message);
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
     const handleImageToPrompt = async (imageUrl: string) => {
         if (isLoading) return;
@@ -122,28 +162,28 @@ export default function ImageEditor() {
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (event.target?.result) {
-                    setContentImages([event.target.result as string]);
-                }
-            };
-            reader.readAsDataURL(file);
+            const blobUrl = URL.createObjectURL(file);
+
+            setContentImages([blobUrl]);
         }
     };
 
     const generateCoverImage = useCallback(async () => {
         if (isImageLoading || prompt.trim() === '') return;
+
         const basePrompt = prompt.trim() || '抽象背景';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
         setContentImages([]);
+        setUploadImage('');
 
         try {
             const imagePromises = Array.from({ length: numImages }).map(async () => {
                 const seed = Math.floor(Math.random() * 100000);
-                const imageUrl = `https://image.pollinations.ai/prompt/${imagePrompt}?seed=${seed}&nologo=true&enhance=true&width=${width}&height=${height}`;
+                const payload: Record<string, any> = uploadImage ? { model, image: uploadImage } : { seed, nologo: true, enhance: true, width, height };
+                payload.token = process.env.NEXT_PUBLIC_POLLAI_KEY || '';
+                const imageUrl = `https://image.pollinations.ai/prompt/${imagePrompt}?${objectToQueryString(payload)}`;
 
                 const response = await fetch(imageUrl);
                 if (!response.ok) {
@@ -163,7 +203,7 @@ export default function ImageEditor() {
         } finally {
             setIsImageLoading(false);
         }
-    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions]);
+    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions, uploadImage]);
 
     const toggleRatioLock = useCallback((value: string) => {
         setAspectRatio(value);
@@ -284,6 +324,20 @@ export default function ImageEditor() {
                                     ))}
                                 </select>
                             </div>
+
+                            <div>
+                                <label htmlFor="style" className="block text-sm font-medium text-gray-700">模型</label>
+                                <select
+                                    id="style"
+                                    value={model}
+                                    onChange={(e) => setModel(e.target.value)}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    {modelOptions.map(s => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <input
@@ -305,14 +359,14 @@ export default function ImageEditor() {
                                 className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center flex-grow"
                                 disabled={isImageLoading}
                             >
-                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : '生成图像'}
+                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : uploadImage ? '编辑图像' : '生成图像'}
                             </button>
                         </div>
                     </div>
 
                     {/* Right Column: Image Display */}
                     <div className="w-full md:w-2/3 bg-white rounded-lg shadow-sm p-6">
-                        <div className="relative w-full h-full" style={{ minHeight: '400px' }}>
+                        <div className="relative overflow-y-auto" style={{ minHeight: '450px', maxHeight: '500px' }}>
                             {isImageLoading && contentImages.length === 0 ? (
                                 <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
                                     <FaSpinner className="animate-spin mr-2" /> 图像生成中...
@@ -324,7 +378,7 @@ export default function ImageEditor() {
                                             <img
                                                 src={image}
                                                 alt={`${prompt || '生成的图像'} ${index + 1}`}
-                                                className="w-full rounded-lg border border-gray-200 shadow-sm hover:border-blue-600 transition-colors"
+                                                className={`w-full rounded-lg border border-gray-200 shadow-sm hover:border-blue-600 transition-colors ${uploadImage === image ? '!border-blue-600' : ''}`}
                                             />
 
                                             <div className="flex mt-2 gap-4">
@@ -342,6 +396,14 @@ export default function ImageEditor() {
                                                 >
                                                     <FaCopy size={14} />
                                                     <span className='text-xs'>提示词</span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleEditImage(image)}
+                                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 cursor-pointer"
+                                                >
+                                                    <FaEdit size={14} />
+                                                    <span className='text-xs'>{image === uploadImage ? '取消编辑' : '编辑'}</span>
                                                 </button>
                                             </div>
                                         </div>

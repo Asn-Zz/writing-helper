@@ -60,3 +60,9 @@ export function generateDiffMarkup(original: string, polished: string): string {
     return diffLines.join('\n');
 }
   
+export function objectToQueryString(params: Record<string, any>) {
+    return Object.entries(params)
+      .filter(([_, value]) => value)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('&');
+}
