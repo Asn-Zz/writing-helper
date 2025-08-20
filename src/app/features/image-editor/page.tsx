@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
-import { objectToQueryString } from '@/app/lib/utils';
+import { objectToQueryString, cn } from '@/app/lib/utils';
 import 'react-photo-view/dist/react-photo-view.css';
+import './style.css';
 
 const DEFAULT_SIZE = 1024;
 
@@ -29,6 +30,56 @@ export default function ImageEditor() {
     const modelOptions = ['flux', 'gptimage', 'kontext'];
     const [model, setModel] = useState(modelOptions[0]);
     const [uploadImage, setUploadImage] = useState<string>('');
+    const [imageHistory, setImageHistory] = useState<string[]>([]);
+
+    const [background, setBackground] = useState({});
+    const generateBackgroundImage = useCallback(() => {
+        const seed = Math.floor(Math.random() * 100000);
+        setBackground({
+            background: `no-repeat url(https://bing.img.run/rand.php?seed=${seed}) center center/cover`,
+            backdropFilter: 'blur(5px)',
+        });
+    }, []);
+
+    useEffect(() => {
+        generateBackgroundImage();
+    }, [generateBackgroundImage]);
+
+    useEffect(() => {
+        try {
+            const storedHistory = localStorage.getItem('imageHistory');
+            if (storedHistory) {
+                setImageHistory(JSON.parse(storedHistory));
+            }
+        } catch (error) {
+            console.error("Failed to load image history from localStorage", error);
+        }
+    }, []);
+
+    
+    const addImagesToHistory = useCallback((newImages: string[]) => {
+        setImageHistory(prevHistory => {
+            const updatedHistory = [...new Set([...newImages, ...prevHistory])].slice(0, 50);
+            try {
+                localStorage.setItem('imageHistory', JSON.stringify(updatedHistory));
+            } catch (error) {
+                console.error("Failed to save image history to localStorage", error);
+            }
+            return updatedHistory;
+        });
+    }, []);
+
+    const handleDeleteFromHistory = useCallback((imageUrl: string) => {
+        setImageHistory(prevHistory => {
+            const updatedHistory = prevHistory.filter(img => img !== imageUrl);
+            try {
+                localStorage.setItem('imageHistory', JSON.stringify(updatedHistory));
+            } catch (error) {
+                console.error("Failed to update image history in localStorage", error);
+            }
+            return updatedHistory;
+        });
+    }, []);
 
     const handleTranslate = async () => {
         if (!prompt.trim() || isLoading) return;
@@ -101,8 +152,8 @@ export default function ImageEditor() {
                 throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`);
             }
             const data = await response.json();
-
             setUploadImage(data.message);
+            addImagesToHistory([data.message]);
         } catch (error) {
             console.error(error);
         }
@@ -176,6 +227,7 @@ export default function ImageEditor() {
             .then(res => res.json())
             .then((res) => {
                 setContentImages([res.message]);
+                addImagesToHistory([res.message]);
             });
         }
     };
@@ -191,8 +243,6 @@ export default function ImageEditor() {
     }
 
     const generateCoverImage = useCallback(async () => {
-        if (isImageLoading || prompt.trim() === '') return;
-
         const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
@@ -382,7 +432,7 @@ export default function ImageEditor() {
                             <button
                                 onClick={generateCoverImage}
                                 className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center flex-grow"
-                                disabled={isImageLoading}
+                                disabled={isImageLoading || prompt.trim() === ''}
                             >
                                 {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : uploadImage ? '编辑图像' : '生成图像'}
                             </button>
@@ -401,8 +451,8 @@ export default function ImageEditor() {
                     </div>
 
                     {/* Right Column: Image Display */}
-                    <div className="w-full md:w-2/3 bg-white rounded-lg shadow-sm p-6">
-                        <div className="relative overflow-y-auto" style={{ minHeight: '450px', maxHeight: '500px' }}>
+                    <div className={cn("w-full md:w-2/3 bg-white rounded-lg shadow-sm", { "p-6": contentImages.length })}>
+                        <div className="relative overflow-y-auto h-full" style={{ minHeight: '450px', maxHeight: '500px' }}>
                             {isImageLoading && contentImages.length === 0 ? (
                                 <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
                                     <FaSpinner className="animate-spin mr-2" /> 图像生成中...
@@ -428,16 +478,12 @@ export default function ImageEditor() {
                                         );
                                     }}>
                                         {contentImages.map((image, index) => (
-                                            <div className='relative rounded-lg overflow-hidden mb-4 break-inside-avoid' key={index}>
+                                            <div className='view-list relative rounded-lg overflow-hidden mb-6 break-inside-avoid border-1 border-gray-200 hover:border-blue-500' key={index}>
                                                 <PhotoView src={image}>
-                                                    <img
-                                                        src={image}
-                                                        alt={`${prompt || '生成的图像'} ${index + 1}`}
-                                                        className={`w-full shadow-sm hover:transform hover:scale-105 transition-all duration-300 ${uploadImage === image ? 'border-1 border-blue-500' : ''}`}
-                                                    />
+                                                    <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
                                                 </PhotoView>
 
-                                                <div className='absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/10'>
+                                                <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', uploadImage === image ? 'block' : 'hidden')}>
                                                     <button
                                                         onClick={() => handleDownload(image)}
                                                         className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
@@ -459,7 +505,7 @@ export default function ImageEditor() {
                                                         className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
                                                     >
                                                         <FaEdit size={14} />
-                                                        <span className='text-[10px]'>{image === uploadImage ? '取消编辑' : '编辑'}</span>
+                                                        <span className='text-[10px]'>{image === uploadImage ? '取消' : '编辑'}</span>
                                                     </button>
 
                                                     <button
@@ -476,15 +522,43 @@ export default function ImageEditor() {
                                 </div>
                             ) : (
                                 <div
-                                    className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-300 transition-colors cursor-pointer"
-                                    onClick={generateCoverImage}
+                                    className="absolute inset-0 !bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 cursor-pointer"
+                                    onClick={generateBackgroundImage}
+                                    style={background}
+                                    title="点击生成图像"
                                 >
-                                    <span>输入描述后生成图像</span>
+                                    {/* <span>输入描述后生成图像</span> */}
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
+
+                {imageHistory.length > 0 && (
+                    <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">我的作品</h3>
+                        {imageHistory.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {imageHistory.map((image, index) => (
+                                    <div key={index} className="relative group">
+                                        <img src={image} alt={`历史图片 ${index + 1}`} className="w-full max-h-40 object-cover rounded-md cursor-pointer shadow-md" />
+                                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-50 transition-opacity rounded-md">
+                                            <button onClick={() => { handleDeleteFromHistory(image); }} className="text-white p-2">
+                                                <FaTrash size={20} />
+                                            </button>
+
+                                            <button onClick={() => { setContentImages(prev => [...prev, image]); }} className="text-white p-2">
+                                                <FaEdit size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4">暂无历史记录。</p>
+                        )}
+                    </div>
+                )}
             </div>
         </FeatureLayout>
     );

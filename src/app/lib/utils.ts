@@ -1,3 +1,5 @@
+export { default as cn } from 'classnames';
+
 export function exportToMarkdown(content: string): void {
     // Create a blob with the content
     const blob = new Blob([content], { type: 'text/markdown' });
