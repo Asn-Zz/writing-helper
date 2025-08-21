@@ -322,10 +322,11 @@ export default function SegmentsManager({
     setSegments(updatedSegments);
   };
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>, segmentId: string) => {
     const newName = e.target.value;
-    //@ts-ignore
-    setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, name: newName } : s));
+    const updatedSegments = segments.map(s => s.id === segmentId ? { ...s, name: newName } : s);
+
+    setSegments(updatedSegments);
   }
 
   return (
@@ -410,7 +411,7 @@ export default function SegmentsManager({
                     </td>
                     <td className="py-3 px-4">{index + 1}</td>
                     <td className="py-3 px-4">
-                      <input type="text" value={segment.name} onChange={onChange} onBlur={(e) => validateSegmentName(segment.id, e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400" />
+                      <input type="text" value={segment.name} onChange={(e) => onChange(e, segment.id)} onBlur={(e) => validateSegmentName(segment.id, e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400" />
                     </td>
                     <td className="py-3 px-4">{formatTime(segment.start)}</td>
                     <td className="py-3 px-4">{formatTime(segment.end)}</td>
