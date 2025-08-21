@@ -26,7 +26,6 @@ export default function WritingAssistant() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
-  const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
 
   const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setKeywords(e.target.value);
@@ -94,10 +93,6 @@ export default function WritingAssistant() {
     }
   };
 
-  const toggleDebugInfo = () => {
-    setShowDebugInfo(!showDebugInfo);
-  };
-
   return (
     <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="container mx-auto">
@@ -113,19 +108,7 @@ export default function WritingAssistant() {
                   </svg>
                   写作设置
                 </h2>
-
-                <button
-                  type="button"
-                  className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded-md transition duration-150 ease-in-out"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleDebugInfo();
-                  }}
-                >
-                  {showDebugInfo ? '隐藏调试信息' : '显示调试信息'}
-                </button>
               </div>
-              
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Content Settings */}
@@ -204,15 +187,13 @@ export default function WritingAssistant() {
                     </div>
                   </div>
 
-                  {useCustomPrompt && (
-                    <textarea
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={3}
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="请输入您期望的写作风格，例如：质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀"
-                    />
-                  )}
+                  <textarea
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="请输入您期望的写作风格，例如：质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀"
+                  />
                 </div>
                 
                 <div className="flex space-x-4">

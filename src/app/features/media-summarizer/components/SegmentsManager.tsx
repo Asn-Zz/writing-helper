@@ -349,7 +349,7 @@ export default function SegmentsManager({
             </div>
             <input type="range" id="min-silence-duration" min="0.2" max="2" step="0.1" value={minSilenceDuration} onChange={(e) => setMinSilenceDuration(Number(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer sensitivity-slider" />
           </div>
-          <button onClick={() => autoSplitAudio(silenceThreshold, minSilenceDuration)} className="w-full py-2 px-4 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded}>
+          <button onClick={() => autoSplitAudio(silenceThreshold, minSilenceDuration)} className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded}>
             <FaMagic className="h-5 w-5 mr-1" />
             自动检测分割点
           </button>
@@ -418,11 +418,11 @@ export default function SegmentsManager({
                     <td className="py-3 px-4">{segment.duration.toFixed(1)}s</td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex justify-center space-x-2">
-                        <button onClick={() => previewSegment(segment.start, segment.end)} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm flex items-center" title="预览">
-                          <FaPlay className="h-4 w-4 mr-1" /> 预览
+                        <button onClick={() => previewSegment(segment.start, segment.end)} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-xs flex items-center" title="预览">
+                          <FaPlay className="h-3 w-3 mr-1" /> 预览
                         </button>
-                        <button onClick={() => exportSegment(segment)} className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-sm flex items-center" title="导出">
-                          <FaDownload className="h-4 w-4 mr-1" /> 导出
+                        <button onClick={() => exportSegment(segment)} className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-xs flex items-center" title="导出">
+                          <FaDownload className="h-3 w-3 mr-1" /> 导出
                         </button>
                       </div>
                     </td>
@@ -437,7 +437,7 @@ export default function SegmentsManager({
         <h2 className="text-xl font-semibold mb-4 mt-6">5. 批量重命名 <span className="text-sm text-yellow-500">（检查格式）</span></h2>
         <div className="mb-4">
           <textarea value={batchRenameText} onChange={(e) => setBatchRenameText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-blue-500" rows={5} placeholder="请输入新的名称列表，每行一个名称，将按顺序应用到分割片段"></textarea>
-          <div className="mt-2 text-sm text-gray-500">提示：输入的行数应与分割片段数量相同，否则多余的行将被忽略，不足的片段将保持原名称。</div>
+          <div className="mt-2 text-sm text-gray-500">提示：输入的行数应与分割片段数量相同，否则多余的行将被忽略，不足的片段将保持原名称</div>
           <div className="mt-3 flex justify-end">
             <button onClick={applyBatchRename} className="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center" disabled={segments.length === 0 || !batchRenameText.trim()}>
               <FaCheck className="h-5 w-5 mr-1" />

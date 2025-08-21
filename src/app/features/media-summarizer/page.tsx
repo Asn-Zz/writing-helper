@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import {
-  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook, FaTrash, FaMagic, FaChevronRight, FaChevronDown
+  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook, FaTrash, FaMagic, FaChevronRight, FaChevronDown,
+  FaCloudUploadAlt
 } from 'react-icons/fa';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
@@ -44,6 +45,7 @@ export default function AudioEditorPage() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [originalFileName, setOriginalFileName] = useState("");
   const [showJsonView, setShowJsonView] = useState(false);
+  const [showSegmentsManager, setShowSegmentsManager] = useState(false);
 
   // --- AI Feature State ---
   const { apiConfig, setApiConfig } = useApiSettings();
@@ -555,12 +557,10 @@ export default function AudioEditorPage() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <p className="mb-2">支持mp3、wav、m3u8等格式</p>
-                  {fileInfo && <p className="text-sm text-gray-500 mb-3">{fileInfo}</p>}
+                  <FaCloudUploadAlt className="text-5xl text-gray-400 mx-auto" />
+                  <p className="my-2">支持mp3、wav、m3u8等格式</p>
+                  {fileInfo && <p className="text-sm text-gray-500">{fileInfo}</p>}
                   <input type="file" id="audio-input" accept="audio/*" className="hidden" onChange={handleFileUpload} ref={audioInputRef} />
-                  <span className="inline-block py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition duration-200">
-                    选择文件
-                  </span>
                 </div>
               </label>
             </div>
@@ -580,7 +580,7 @@ export default function AudioEditorPage() {
                     </button>
                   </div>
                   <div className="flex-1">
-                    <button onClick={() => clearAllMarkers(true)} className="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded || !hasRegions}>
+                    <button onClick={() => clearAllMarkers(true)} className="w-full py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded || !hasRegions}>
                       <FaTrash className="h-5 w-5 mr-1" />
                       清除所有分割点
                     </button>
@@ -602,7 +602,7 @@ export default function AudioEditorPage() {
                 <button onClick={zoomOut} className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-200" disabled={!isAudioLoaded}>缩小</button>
               </div>
               <div>
-                <span className="text-gray-600">{formattedCurrentTime}</span> /
+                <span className="text-gray-600">{formattedCurrentTime}</span>&nbsp;/&nbsp;
                 <span className="text-gray-600">{formattedTotalTime}</span>
               </div>
             </div>
@@ -696,23 +696,30 @@ export default function AudioEditorPage() {
             )}
           </div>
 
-          {/* 4. Segments List & AI Summary */}
           {isAudioLoaded && (
-            <SegmentsManager
-              segments={segments}
-              setSegments={setSegments}
-              wavesurferInstance={wavesurferInstance.current}
-              audioBuffer={audioBuffer.current}
-              originalFileName={originalFileName}
-              isAudioLoaded={isAudioLoaded}
-              batchRenameText={batchRenameText}
-              setBatchRenameText={setBatchRenameText}
-              showLoading={showLoading}
-              hideLoading={hideLoading}
-              updateSegmentsList={updateSegmentsList}
-              autoSplitAudio={autoSplitAudio}
-            />
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6 flex items-center justify-between cursor-pointer" onClick={() => setShowSegmentsManager(!showSegmentsManager)}>
+              <h2 className="text-xl font-semibold">剪切 & 导出</h2>
+              <span>{ showSegmentsManager ? '隐藏' : '显示' }</span>
+            </div>
           )}
+
+          {/* 4. Segments List & AI Summary */}
+          {isAudioLoaded && showSegmentsManager && (
+              <SegmentsManager
+                segments={segments}
+                setSegments={setSegments}
+                wavesurferInstance={wavesurferInstance.current}
+                audioBuffer={audioBuffer.current}
+                originalFileName={originalFileName}
+                isAudioLoaded={isAudioLoaded}
+                batchRenameText={batchRenameText}
+                setBatchRenameText={setBatchRenameText}
+                showLoading={showLoading}
+                hideLoading={hideLoading}
+                updateSegmentsList={updateSegmentsList}
+                autoSplitAudio={autoSplitAudio}
+              />
+            )}
         </div>
       </FeatureLayout>
 

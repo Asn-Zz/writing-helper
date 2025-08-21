@@ -27,6 +27,8 @@ export const featureLinks: NavLink[] = [
     href: '#other', 
     label: '其他工具', 
     children: [
+      { href: '/chat', label: 'AI聊天', target: '_blank' },
+
       { href: '/features/markdown', label: '编辑器', target: '_blank' },
       { href: 'https://collagemaker.tools/zh/photo/', label: '拼图工具', target: '_blank' },
       { href: 'https://greenvideo.cc/', label: '视频下载', target: '_blank' },
