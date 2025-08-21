@@ -8,7 +8,6 @@ import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { objectToQueryString, cn } from '@/app/lib/utils';
 import 'react-photo-view/dist/react-photo-view.css';
-import './style.css';
 
 const DEFAULT_SIZE = 1024;
 
@@ -560,6 +559,12 @@ export default function ImageEditor() {
                     </div>
                 )}
             </div>
+
+            <style jsx global>{`
+            .view-list:hover > div {
+                display: flex;
+            }
+            `}</style>
         </FeatureLayout>
     );
 }

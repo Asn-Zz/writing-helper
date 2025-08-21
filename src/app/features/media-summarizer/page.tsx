@@ -1,0 +1,1158 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Script from 'next/script';
+import {
+  FaPlusCircle, FaTrash, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook,
+  FaMagic, FaLink, FaPlay, FaDownload, FaCheck, FaFileArchive, FaChevronRight, FaChevronDown
+} from 'react-icons/fa';
+import FeatureLayout from '@/app/components/FeatureLayout';
+import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import { generate } from '@/app/lib/api';
+import { Segment, Subtitle, AiSummary } from './types';
+import './style.css';
+
+// Helper function to format time
+const formatTime = (timeInSeconds: number) => {
+  if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
+  const minutes = Math.floor(timeInSeconds / 60);
+  const seconds = Math.floor(timeInSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+export default function AudioEditorPage() {
+  // --- Refs for instances and DOM elements ---
+  const wavesurferInstance = useRef<any>(null);
+  const audioContext = useRef<any>(null);
+  const audioBuffer = useRef<any>(null);
+  const currentAudioFile = useRef<any>(null);
+  const waveformRef = useRef<any>(null);
+  const timelineRef = useRef<any>(null);
+  const audioInputRef = useRef<any>(null);
+  const segmentControlsContainerRef = useRef<any>(null);
+
+  // --- State Management ---
+  const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('处理中，请稍候...');
+  const [fileInfo, setFileInfo] = useState("未选择文件");
+  const [isAudioLoaded, setIsAudioLoaded] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [batchRenameText, setBatchRenameText] = useState("");
+  const [silenceThreshold, setSilenceThreshold] = useState(-40);
+  const [minSilenceDuration, setMinSilenceDuration] = useState(0.5);
+  const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
+  const [selectAllSegments, setSelectAllSegments] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isSegmentControlsSticky, setIsSegmentControlsSticky] = useState(false);
+  const [showJsonView, setShowJsonView] = useState(false);
+  const [originalFileName, setOriginalFileName] = useState("");
+
+  // --- AI Feature State ---
+  const { apiConfig, setApiConfig } = useApiSettings();
+  const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
+  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
+  const [aiSummaryJson, setAiSummaryJson] = useState<AiSummary | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [fullTranscript, setFullTranscript] = useState('');
+
+  // --- Computed-like values ---
+  const formattedCurrentTime = useMemo(() => formatTime(currentTime), [currentTime]);
+  const formattedTotalTime = useMemo(() => formatTime(totalTime), [totalTime]);
+  const hasRegions = useMemo(() => {
+    return wavesurferInstance.current && Object.keys(wavesurferInstance.current.regions.list).length > 0;
+  }, [segments]); // Re-evaluate when segments change, as they reflect regions
+
+  // --- Loading and Utility Functions ---
+  const showLoading = (message = "处理中，请稍候...") => {
+    setLoadingMessage(message);
+    setIsLoading(true);
+  };
+  const hideLoading = () => setIsLoading(false);
+
+  // --- Core WaveSurfer and Audio Logic ---
+  const updateSegmentsList = useCallback(() => {
+    if (!wavesurferInstance.current) {
+      setSegments([]);
+      return;
+    }
+    const totalTime = wavesurferInstance.current.getDuration();
+    if (!totalTime) {
+      setSegments([]);
+      return;
+    }
+
+    const wsRegions = Object.values(wavesurferInstance.current.regions.list) as any[];
+    wsRegions.sort((a, b) => a.start - b.start);
+
+    const newSegments: Segment[] = [];
+    let lastEnd = 0;
+    let segmentIndex = 0;
+
+    if (wsRegions.length === 0 || wsRegions[0].start > 0.01) {
+      const end = wsRegions.length > 0 ? wsRegions[0].start : totalTime;
+      if (end - lastEnd >= 0.05) {
+        segmentIndex++;
+        const segmentId = `segment-${segmentIndex}`;
+        const existing = segments.find(s => s.start.toFixed(3) === lastEnd.toFixed(3) && s.end.toFixed(3) === end.toFixed(3));
+        newSegments.push({
+          id: segmentId,
+          name: existing?.name || `片段 ${segmentIndex}`,
+          start: lastEnd,
+          end: end,
+          duration: end - lastEnd,
+          regionId: null
+        });
+        lastEnd = end;
+      }
+    } else if (wsRegions.length > 0) {
+      lastEnd = wsRegions[0].start;
+    }
+
+    for (let i = 0; i < wsRegions.length; i++) {
+      const region = wsRegions[i];
+      const start = lastEnd;
+      const end = (i + 1 < wsRegions.length) ? wsRegions[i + 1].start : totalTime;
+
+      if (end - start >= 0.05) {
+        segmentIndex++;
+        const segmentId = `segment-${segmentIndex}`;
+        const existing = segments.find(s => s.start.toFixed(3) === start.toFixed(3) && s.end.toFixed(3) === end.toFixed(3));
+        newSegments.push({
+          id: segmentId,
+          name: existing?.name || `片段 ${segmentIndex}`,
+          start: start,
+          end: end,
+          duration: end - start,
+          regionId: region.id
+        });
+      }
+      lastEnd = end;
+      if (i + 1 < wsRegions.length) {
+        lastEnd = wsRegions[i + 1].start;
+      }
+    }
+    const uniqueIds = new Set();
+    newSegments.forEach((seg, idx) => {
+      let finalId = seg.id;
+      let suffix = 0;
+      while (uniqueIds.has(finalId)) {
+        suffix++;
+        finalId = `segment-${idx + 1}-${suffix}`;
+      }
+      uniqueIds.add(finalId);
+      seg.id = finalId;
+    });
+    setSegments(newSegments);
+    setSelectedSegmentIds([]);
+    setSelectAllSegments(false);
+  }, [segments]); // segments dependency is for preserving names
+
+  const initWaveSurfer = useCallback(() => {
+    if (!scriptsLoaded || !waveformRef.current || !timelineRef.current) return;
+
+    if (wavesurferInstance.current) {
+      wavesurferInstance.current.destroy();
+    }
+
+    wavesurferInstance.current = window.WaveSurfer.create({
+      container: waveformRef.current,
+      waveColor: '#4A90E2',
+      progressColor: '#2574c4',
+      cursorColor: '#FF5500',
+      cursorWidth: 2,
+      barWidth: 2,
+      barGap: 1,
+      height: 128,
+      responsive: true,
+      normalize: true,
+      plugins: [
+        window.WaveSurfer.regions.create({ dragSelection: false }),
+        window.WaveSurfer.timeline.create({
+          container: timelineRef.current,
+          primaryFontColor: '#3D3D3D',
+          secondaryFontColor: '#7D7D7D',
+          primaryColor: '#CCCCCC',
+          secondaryColor: '#DDDDDD'
+        })
+      ]
+    });
+
+    // --- Event Listeners ---
+    wavesurferInstance.current.on('ready', async () => {
+      setTotalTime(wavesurferInstance.current.getDuration());
+      setIsAudioLoaded(true);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      clearAllMarkers(false);
+
+      try {
+        if (!audioBuffer.current && currentAudioFile.current) {
+          const arrayBuffer = await currentAudioFile.current.arrayBuffer();
+          audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
+          audioBuffer.current = await audioContext.current.decodeAudioData(arrayBuffer);
+        }
+        updateSegmentsList();
+        hideLoading();
+      } catch (error) {
+        console.error("Error decoding audio data:", error);
+        hideLoading();
+        resetState();
+      }
+    });
+    wavesurferInstance.current.on('audioprocess', (time : number) => setCurrentTime(time));
+    wavesurferInstance.current.on('seek', (progress : number) => {
+      if (wavesurferInstance.current) {
+        setCurrentTime(progress * wavesurferInstance.current.getDuration());
+      }
+    });
+    wavesurferInstance.current.on('play', () => setIsPlaying(true));
+    wavesurferInstance.current.on('pause', () => setIsPlaying(false));
+    wavesurferInstance.current.on('finish', () => {
+      setIsPlaying(false);
+      wavesurferInstance.current.seekTo(0);
+      setCurrentTime(0);
+    });
+    wavesurferInstance.current.on('region-created', updateSegmentsList);
+    wavesurferInstance.current.on('region-updated', updateSegmentsList);
+    wavesurferInstance.current.on('region-removed', updateSegmentsList);
+    wavesurferInstance.current.on('click', (progress : number, event : any) => {
+      if (event.target.closest('.wavesurfer-region, .region-handle')) return;
+      if (wavesurferInstance.current && wavesurferInstance.current.getDuration() > 0 && !wavesurferInstance.current.isPlaying()) {
+        addMarkerAtPosition(progress * wavesurferInstance.current.getDuration());
+      }
+    });
+  }, [scriptsLoaded, updateSegmentsList]);
+
+  const processFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('audio/')) {
+      alert('请选择有效的音频文件');
+      return;
+    }
+    resetStateBeforeLoad();
+    currentAudioFile.current = file;
+    setFileInfo(`已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+    setOriginalFileName(file.name.replace(/\.[^/.]+$/, ""));
+
+    const fileURL = URL.createObjectURL(file);
+
+    showLoading('正在加载音频文件...');
+    setIsAudioLoaded(false);
+
+    if (!wavesurferInstance.current) {
+      initWaveSurfer();
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
+      audioBuffer.current = await audioContext.current.decodeAudioData(arrayBuffer.slice(0));
+      wavesurferInstance.current.load(fileURL);
+    } catch (error) {
+      console.error("Error processing audio file:", error);
+      hideLoading();
+      resetState();
+    }
+  }, [initWaveSurfer]);
+
+  const handleFileUpload = (event: any) => {
+    const file = event.target.files[0];
+    if (file) processFile(file);
+  };
+  const handleDragOver = (event : any) => { event.preventDefault(); setIsDraggingOver(true); };
+  const handleDragLeave = (event : any) => { event.preventDefault(); setIsDraggingOver(false); };
+  const handleDrop = (event : any) => {
+    event.preventDefault();
+    setIsDraggingOver(false);
+    const file = event.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      processFile(file);
+      if (audioInputRef.current) audioInputRef.current.value = '';
+    } else {
+      alert('请拖放有效的音频文件');
+    }
+  };
+
+  const resetStateBeforeLoad = () => {
+    if (wavesurferInstance.current) wavesurferInstance.current.stop();
+    setIsPlaying(false);
+    setIsAudioLoaded(false);
+    audioBuffer.current = null;
+    currentAudioFile.current = null;
+    setSegments([]);
+    setCurrentTime(0);
+    setTotalTime(0);
+    setSelectedSegmentIds([]);
+    setSelectAllSegments(false);
+    setBatchRenameText("");
+    setSubtitles([]);
+    setAiSummaryJson(null);
+    setFullTranscript('');
+  };
+
+  const resetState = () => {
+    resetStateBeforeLoad();
+    setFileInfo("未选择文件");
+    setOriginalFileName("");
+    if (audioInputRef.current) audioInputRef.current.value = '';
+    if (wavesurferInstance.current) wavesurferInstance.current.empty();
+  };
+
+  // --- Control Functions ---
+  const playPause = () => { if (wavesurferInstance.current && isAudioLoaded) wavesurferInstance.current.playPause(); };
+  const zoomIn = () => { if (wavesurferInstance.current) wavesurferInstance.current.zoom(wavesurferInstance.current.params.minPxPerSec * 1.2); };
+  const zoomOut = () => { if (wavesurferInstance.current) wavesurferInstance.current.zoom(Math.max(wavesurferInstance.current.params.minPxPerSec / 1.2, 20)); };
+
+  const addMarkerAtPosition = (position: number) => {
+    if (!wavesurferInstance.current || position < 0 || position > totalTime) return;
+    const existingRegions = Object.values(wavesurferInstance.current.regions.list) as any;
+    if (existingRegions.some((r : any) => Math.abs(r.start - position) < 0.05)) return;
+    wavesurferInstance.current.addRegion({
+      id: 'marker-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      start: position, end: position, color: 'rgba(255, 0, 0, 0.5)', drag: true, resize: false
+    });
+  };
+  const addMarkerAtCurrentTime = () => { if (wavesurferInstance.current && isAudioLoaded) addMarkerAtPosition(wavesurferInstance.current.getCurrentTime()); };
+  const clearAllMarkers = (confirmUser = true) => {
+    if (!wavesurferInstance.current) return;
+    if (confirmUser && !confirm("确定要清除所有分割点吗？")) return;
+    wavesurferInstance.current.clearRegions();
+    updateSegmentsList();
+  };
+
+  // --- Segment Operations ---
+  const previewSegment = (start: number, end: number) => { if (wavesurferInstance.current) wavesurferInstance.current.play(start, end); };
+
+  const bufferToMp3 = (buffer: any, bitrate = 128) => {
+    if (typeof window.lamejs === 'undefined') {
+      console.error("lamejs library not loaded!");
+      throw new Error("MP3 编码库未加载");
+    }
+    const channels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const mp3encoder = new window.lamejs.Mp3Encoder(channels, sampleRate, bitrate);
+    const mp3Data = [];
+    const sampleBlockSize = 1152;
+
+    const processChannel = (channelData : any) => {
+      const samples = channelData;
+      const samplesInt16 = new Int16Array(samples.length);
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        samplesInt16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return samplesInt16;
+    };
+
+    if (channels === 1) {
+      const samplesInt16 = processChannel(buffer.getChannelData(0));
+      for (let i = 0; i < samplesInt16.length; i += sampleBlockSize) {
+        const sampleChunk = samplesInt16.subarray(i, i + sampleBlockSize);
+        const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+      }
+    } else {
+      const left = processChannel(buffer.getChannelData(0));
+      const right = processChannel(buffer.getChannelData(1));
+      for (let i = 0; i < left.length; i += sampleBlockSize) {
+        const leftChunk = left.subarray(i, i + sampleBlockSize);
+        const rightChunk = right.subarray(i, i + sampleBlockSize);
+        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+      }
+    }
+
+    const endMp3buf = mp3encoder.flush();
+    if (endMp3buf.length > 0) mp3Data.push(endMp3buf);
+
+    const totalLength = mp3Data.reduce((acc, buf) => acc + buf.length, 0);
+    const mp3Array = new Uint8Array(totalLength);
+    let offset = 0;
+    mp3Data.forEach(buf => {
+      mp3Array.set(buf, offset);
+      offset += buf.length;
+    });
+
+    return new Blob([mp3Array], { type: 'audio/mp3' });
+  };
+
+  const exportSegment = async (segment: Segment) => {
+    if (!audioBuffer.current) {
+      alert('音频数据尚未准备好，请稍后再试');
+      return;
+    }
+    showLoading(`正在导出: ${segment.name}...`);
+
+    try {
+      const start = segment.start;
+      const end = segment.end;
+      const name = segment.name || `片段_${segment.id}`;
+      const sampleRate = audioBuffer.current.sampleRate;
+      const startSample = Math.floor(start * sampleRate);
+      const endSample = Math.floor(end * sampleRate);
+      const frameCount = Math.max(1, endSample - startSample);
+
+      const offlineCtx = new OfflineAudioContext(
+        audioBuffer.current.numberOfChannels,
+        frameCount,
+        sampleRate
+      );
+      const newSource = offlineCtx.createBufferSource();
+      newSource.buffer = audioBuffer.current;
+      newSource.connect(offlineCtx.destination);
+      newSource.start(0, start, end - start);
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      const mp3Blob = bufferToMp3(renderedBuffer);
+      const safeName = name.replace(/[\/\\?%*:|"<>]/g, '_');
+      const fileName = `${safeName}.mp3`;
+
+      window.saveAs(mp3Blob, fileName);
+    } catch (error) {
+      console.error('导出片段时出错:', error);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const exportAllSegments = async () => {
+    if (!audioBuffer.current || segments.length === 0) {
+      alert('没有可导出的音频片段');
+      return;
+    }
+    showLoading(`准备导出 ${segments.length} 个片段... (0%)`);
+
+    try {
+      const zip = new window.JSZip();
+      const totalCount = segments.length;
+
+      for (let i = 0; i < totalCount; i++) {
+        const segment = segments[i];
+        const progress = Math.round(((i + 1) / totalCount) * 100);
+        setLoadingMessage(`正在处理: ${segment.name} (${i + 1}/${totalCount}) - ${progress}%`);
+
+        const start = segment.start;
+        const end = segment.end;
+        const name = segment.name || `片段_${segment.id}`;
+        const sampleRate = audioBuffer.current.sampleRate;
+        const startSample = Math.floor(start * sampleRate);
+        const endSample = Math.floor(end * sampleRate);
+        const frameCount = Math.max(1, endSample - startSample);
+
+        const offlineCtx = new OfflineAudioContext(audioBuffer.current.numberOfChannels, frameCount, sampleRate);
+        const newSource = offlineCtx.createBufferSource();
+        newSource.buffer = audioBuffer.current;
+        newSource.connect(offlineCtx.destination);
+        newSource.start(0, start, end - start);
+        const renderedBuffer = await offlineCtx.startRendering();
+
+        const mp3Blob = bufferToMp3(renderedBuffer);
+        const safeName = name.replace(/[\/\\?%*:|"<>]/g, '_');
+        const fileName = `${safeName}.mp3`;
+        zip.file(fileName, mp3Blob);
+      }
+
+      setLoadingMessage('正在生成ZIP文件...');
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFileName = `${originalFileName || '音频片段'}_分割.zip`;
+      window.saveAs(zipBlob, zipFileName);
+
+      hideLoading();
+      alert('所有片段已成功导出为ZIP文件');
+    } catch (error) {
+      console.error('批量导出片段时出错:', error);
+      hideLoading();
+    }
+  };
+
+  const applyBatchRename = () => {
+    const lines = batchRenameText.trim().split('\n');
+    if (lines.length === 0 || (lines.length === 1 && !lines[0])) {
+      alert('请输入至少一个名称');
+      return;
+    }
+
+    const newNames = lines.flatMap(line => {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return [];
+      if (trimmedLine.includes('/') && trimmedLine.split(' ').length > 1) {
+        const parts = trimmedLine.split(' ');
+        const speaker = parts[0];
+        const rest = parts.slice(1).join(' ');
+        if (rest.includes('/')) {
+          const subParts = rest.split('/');
+          return subParts.map((sub, i) => `${speaker} ${sub.trim()}_${i}`);
+        }
+      }
+      return trimmedLine;
+    });
+
+    let appliedCount = 0;
+    const updatedSegments = segments.map((segment, index) => {
+      if (index < newNames.length && newNames[index]) {
+        appliedCount++;
+        return { ...segment, name: newNames[index] };
+      }
+      return segment;
+    });
+    setSegments(updatedSegments);
+    alert(`已应用 ${appliedCount} 个名称`);
+  };
+
+  const autoSplitAudio = async () => {
+    if (!audioBuffer.current) {
+      alert('音频数据尚未准备好，请稍后再试');
+      return;
+    }
+    if (hasRegions && !confirm("将清除现有分割点并自动检测，是否继续？")) {
+      return;
+    }
+
+    clearAllMarkers(false);
+    showLoading('正在分析音频特征...');
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const thresholdLinear = Math.pow(10, silenceThreshold / 20);
+      const sampleRate = audioBuffer.current.sampleRate;
+      const minSilenceSamples = Math.floor(minSilenceDuration * sampleRate);
+      const channelData = audioBuffer.current.getChannelData(0);
+      const bufferLength = channelData.length;
+      let inSilence = false;
+      let silenceStartSample = 0;
+      const splitPoints = [];
+      const analysisBlockSize = Math.floor(sampleRate * 0.05);
+      let blockMaxAmplitude = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        blockMaxAmplitude = Math.max(blockMaxAmplitude, Math.abs(channelData[i]));
+        if ((i + 1) % analysisBlockSize === 0 || i === bufferLength - 1) {
+          const isBlockSilent = blockMaxAmplitude < thresholdLinear;
+          const currentBlockStartSample = Math.max(0, i - analysisBlockSize + 1);
+          if (isBlockSilent) {
+            if (!inSilence) {
+              inSilence = true;
+              silenceStartSample = currentBlockStartSample;
+            }
+          } else {
+            if (inSilence) {
+              const silenceEndSample = currentBlockStartSample;
+              const silenceDurationSamples = silenceEndSample - silenceStartSample;
+              if (silenceDurationSamples >= minSilenceSamples) {
+                const splitSample = silenceStartSample + Math.floor(silenceDurationSamples / 2);
+                splitPoints.push(splitSample / sampleRate);
+              }
+            }
+            inSilence = false;
+          }
+          blockMaxAmplitude = 0;
+        }
+      }
+
+      splitPoints.forEach(time => addMarkerAtPosition(time));
+      setLoadingMessage(`自动检测完成，添加了 ${splitPoints.length} 个分割点`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    } catch (error) {
+      console.error('自动分割时出错:', error);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const toggleSelectAll = () => {
+    const newSelectAll = !selectAllSegments;
+    setSelectAllSegments(newSelectAll);
+    if (newSelectAll) {
+      setSelectedSegmentIds(segments.map(s => s.id));
+    } else {
+      setSelectedSegmentIds([]);
+    }
+  };
+
+  const deleteSelectedSegments = () => {
+    if (selectedSegmentIds.length === 0) return;
+    if (!confirm(`确定要删除选中的 ${selectedSegmentIds.length} 个片段吗？\n这将移除相应的分割点。`)) {
+      return;
+    }
+
+    const regionsToRemove: Set<Segment[]> = new Set();
+    const selectedSegmentsData = segments.filter(s => selectedSegmentIds.includes(s.id));
+
+    selectedSegmentsData.forEach(segment => {
+      const endRegion = Object.values(wavesurferInstance.current.regions.list)
+        .find((r: any) => Math.abs(r.start - segment.end) < 0.01) as any;
+      if (endRegion) {
+        regionsToRemove.add(endRegion.id);
+      }
+    });
+
+    regionsToRemove.forEach((regionId: any) => {
+      wavesurferInstance.current.regions.list[regionId]?.remove();
+    });
+
+    setSelectedSegmentIds([]);
+    setSelectAllSegments(false);
+    updateSegmentsList();
+  };
+
+  const mergeSelectedSegments = () => {
+    if (selectedSegmentIds.length < 2) {
+      alert('请至少选择两个连续的片段进行合并');
+      return;
+    }
+
+    const segmentsToMerge = segments
+      .filter(s => selectedSegmentIds.includes(s.id))
+      .sort((a, b) => a.start - b.start);
+
+    let isConsecutive = true;
+    for (let i = 0; i < segmentsToMerge.length - 1; i++) {
+      if (Math.abs(segmentsToMerge[i].end - segmentsToMerge[i + 1].start) > 0.01) {
+        isConsecutive = false;
+        break;
+      }
+    }
+
+    if (!isConsecutive) {
+      alert('选中的片段必须是连续的才能合并');
+      return;
+    }
+    if (!confirm(`确定要合并选中的 ${segmentsToMerge.length} 个连续片段吗？\n这将移除它们之间的分割点。`)) {
+      return;
+    }
+
+    const regionsToRemove = new Set();
+    for (let i = 0; i < segmentsToMerge.length - 1; i++) {
+      const segmentEnd = segmentsToMerge[i].end;
+      const region = Object.values(wavesurferInstance.current.regions.list)
+        .find((r: any) => Math.abs(r.start - segmentEnd) < 0.01) as any;
+      if (region) {
+        regionsToRemove.add(region.id);
+      }
+    }
+
+    regionsToRemove.forEach((regionId: any) => {
+      wavesurferInstance.current.regions.list[regionId]?.remove();
+    });
+
+    setSelectedSegmentIds([]);
+    setSelectAllSegments(false);
+  };
+
+  const validateSegmentName = (segmentId: string, newName: string) => {
+    const updatedSegments = segments.map(s => {
+      if (s.id === segmentId) {
+        if (!newName.trim()) {
+          const index = segments.findIndex(seg => seg.id === segmentId);
+          alert("片段名称不能为空。已重置为默认名称。");
+          return { ...s, name: `片段 ${index + 1}` };
+        }
+        return { ...s, name: newName };
+      }
+      return s;
+    });
+    setSegments(updatedSegments);
+  };
+
+  const generateSubtitles = async () => {
+    if (!currentAudioFile.current) {
+      alert('请先上传音频文件');
+      return;
+    }
+
+    setIsLoadingSubtitles(true);
+    setSubtitles([]);
+    setFullTranscript('');
+    showLoading('正在生成字幕...');
+
+    try {
+      const audioBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(currentAudioFile.current);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+
+      const prompt = `You're a professional audio transcription expert. I'll provide a Base64-encoded audio file. Analyze it carefully and transcribe it into text, marking the start and end time of each sentence. The JSON array MUST include the following keys: "start": Start time (seconds/number), "end": End time (seconds/number), "text": audio text. The audio is approximately ${totalTime} seconds long. Ensure: 1. Timestamps accurately reflect sentence positions. 2. Segments cover the entire audio (0 to end). 3. No overlapping between adjacent segments. 4. Text matches the audio content. 5. Simplified Chinese priority. Ensure the output is ONLY a valid JSON object, starting with { and ending with }. Do not include any explanatory text before or after the JSON.`;
+      const messages = [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: audioBase64 } }] }];
+
+      const data = await generate({
+        ...apiConfig,
+        messages,
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      })
+      const resultText = data.content || data.error || '';
+      const parsedResult = JSON.parse(resultText);      
+      if (Array.isArray(parsedResult)) {
+        setSubtitles(parsedResult.map(seg => ({ ...seg, text: seg.text.trim() })));
+        setFullTranscript(resultText);
+      } else {
+        throw new Error('API返回的JSON格式不符合预期。');
+      }
+    } catch (error) {
+      console.error('生成字幕时出错:', error);
+      setSubtitles([]);
+      setFullTranscript('');
+    } finally {
+      setIsLoadingSubtitles(false);
+      hideLoading();
+    }
+  };
+
+  const seekToSubtitle = (time: number) => {
+    if (wavesurferInstance.current) {
+      wavesurferInstance.current.seekTo(time / totalTime);
+      wavesurferInstance.current.play();
+    }
+  };
+
+  const copySubtitles = async () => {
+    const text = subtitles.map(sub => sub.text).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('字幕已复制到剪贴板');
+    } catch (err) {
+      console.error('无法复制字幕: ', err);
+      alert('复制字幕时出错');
+    }
+  };
+
+  const splitBySubtitles = () => {
+    if (!subtitles || subtitles.length === 0) {
+      alert("没有可用的字幕数据，请先生成字幕");
+      return;
+    }
+    if (hasRegions && !confirm("将清除现有分割点并按字幕创建新分割点，是否继续？")) {
+      return;
+    }
+    clearAllMarkers(false);
+    subtitles.forEach(subtitle => addMarkerAtPosition(subtitle.start));
+    if (subtitles.length > 0) {
+      const lastSubtitle = subtitles[subtitles.length - 1];
+      if (lastSubtitle.end < totalTime) {
+        addMarkerAtPosition(lastSubtitle.end);
+      }
+    }
+  };
+
+  const generateAiSummary = async () => {
+    if (fullTranscript.trim() === '') {
+      alert('请先生成字幕，AI 摘要将基于字幕内容。');
+      return;
+    }
+
+    setIsLoadingSummary(true);
+    setAiSummaryJson(null);
+    showLoading('正在生成 AI 摘要...');
+
+    const prompt = `You are an expert podcast producer. Given the following transcript & language, generate a JSON summary in a podcast format. The JSON object MUST include the following keys: "podcastTitle", "episodeTitle", "overallSummary", "chapters" (array of objects with "start", "end", "title"), "keyTakeaways" (array of strings), "tags" (array of strings). Ensure the output is ONLY a valid JSON object. Transcript: """${fullTranscript}"""`;
+
+    try {
+      const messages = [{ "role": "user", "content": prompt }];
+      const response = await generate({
+        ...apiConfig,
+        messages,
+        temperature: 0.5,
+        response_format: { type: "json_object" }
+      })
+      const summaryText = response.content || response.error || '';
+      const cleanedJson = JSON.parse(summaryText);
+      setAiSummaryJson(cleanedJson);
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      setAiSummaryJson(null);
+    } finally {
+      setIsLoadingSummary(false);
+      hideLoading();
+    }
+  };
+
+  const copySummaryToClipboard = () => {
+    if (aiSummaryJson) {
+      navigator.clipboard.writeText(JSON.stringify(aiSummaryJson, null, 2))
+        .then(() => alert('AI 摘要 (JSON) 已复制到剪贴板!'))
+        .catch(err => alert('复制失败: ' + err));
+    }
+  };
+
+  const splitByChapters = () => {
+    if (!aiSummaryJson || !aiSummaryJson.chapters || aiSummaryJson.chapters.length === 0) {
+      alert("没有可用的章节数据，请先生成AI摘要");
+      return;
+    }
+    if (hasRegions && !confirm("将清除现有分割点并按章节创建新分割点，是否继续？")) {
+      return;
+    }
+    clearAllMarkers(false);
+    aiSummaryJson.chapters.forEach(chapter => addMarkerAtPosition(chapter.start));
+    if (aiSummaryJson.chapters.length > 0) {
+      const lastChapter = aiSummaryJson.chapters[aiSummaryJson.chapters.length - 1];
+      if (lastChapter.end < totalTime) {
+        addMarkerAtPosition(lastChapter.end);
+      }
+    }
+  };
+
+  // --- Lifecycle and Event Handlers ---
+  useEffect(() => {
+    // Load API config from localStorage on mount
+    const savedConfig = localStorage.getItem('audioEditorApiConfig');
+    if (savedConfig) {
+      try {
+        setApiConfig(JSON.parse(savedConfig));
+      } catch (e) {
+        console.error("Error parsing saved API config:", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!segmentControlsContainerRef.current) return;
+      const containerTop = segmentControlsContainerRef.current.getBoundingClientRect().top;
+      setIsSegmentControlsSticky(containerTop <= 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (wavesurferInstance.current) {
+        wavesurferInstance.current.destroy();
+      }
+      if (audioContext.current && audioContext.current.state !== 'closed') {
+        audioContext.current.close();
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      <FeatureLayout
+        title="媒体摘要工具"
+        subtitle="快速生成音频的摘要，提取关键信息和快速剪切"
+      >
+        {isLoading && (
+          <div id="loading-overlay">
+            <div className="text-center">
+              <div className="loader mx-auto mb-4"></div>
+              <p className="text-white text-lg">{loadingMessage}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="container mx-auto">
+          {/* 1. Upload */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h2 className="text-lg font-semibold mb-3">1. 上传音频</h2>
+            <div className="flex flex-col items-center gap-3">
+              <label className="w-full cursor-pointer">
+                <div
+                  className={`w-full p-5 border-2 border-dashed border-gray-300 rounded-lg text-center hover:border-blue-400 hover:bg-blue-50 transition-colors ${isDraggingOver ? 'bg-blue-100 border-blue-400' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <p className="mb-2">支持mp3、wav、m3u8等格式</p>
+                  {fileInfo && <p className="text-sm text-gray-500 mb-3">{fileInfo}</p>}
+                  <input type="file" id="audio-input" accept="audio/*" className="hidden" onChange={handleFileUpload} ref={audioInputRef} />
+                  <span className="inline-block py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition duration-200">
+                    选择文件
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 2. Waveform & Subtitles */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">2. 音频波形与字幕</h2>
+
+            {isAudioLoaded && (
+              <div className="mb-4">
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                  <div className="flex-1">
+                    <button onClick={addMarkerAtCurrentTime} className="w-full py-2 px-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded}>
+                      <FaPlusCircle className="h-5 w-5 mr-1" />
+                      在当前位置添加分割点
+                    </button>
+                  </div>
+                  <div className="flex-1">
+                    <button onClick={() => clearAllMarkers(true)} className="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded || !hasRegions}>
+                      <FaTrash className="h-5 w-5 mr-1" />
+                      清除所有分割点
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div id="waveform" ref={waveformRef} className="w-full h-32 bg-gray-100 mb-2 rounded"></div>
+            <div id="timeline" ref={timelineRef} className="w-full h-6 bg-gray-50 rounded mb-4"></div>
+
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-4">
+                <button onClick={playPause} className="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded}>
+                  {isPlaying ? <FaPauseCircle className="h-5 w-5 mr-1" /> : <FaPlayCircle className="h-5 w-5 mr-1" />}
+                  {isPlaying ? '暂停' : '播放'}
+                </button>
+                <button onClick={zoomIn} className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-200" disabled={!isAudioLoaded}>放大</button>
+                <button onClick={zoomOut} className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-200" disabled={!isAudioLoaded}>缩小</button>
+              </div>
+              <div>
+                <span className="text-gray-600">{formattedCurrentTime}</span> /
+                <span className="text-gray-600">{formattedTotalTime}</span>
+              </div>
+            </div>
+
+            {/* Subtitle Display Area */}
+            {subtitles.length > 0 && (
+              <div className="mt-4 mb-4 p-3 bg-gray-50 rounded-md max-h-60 overflow-y-auto border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-md font-semibold text-gray-700 mb-2">字幕信息 (点击跳转)</h3>
+                  <div>
+                    <span className="text-sm cursor-pointer mr-2" onClick={copySubtitles}>复制</span>
+                    <span className="text-sm text-yellow-500 cursor-pointer" onClick={splitBySubtitles}>自动分割</span>
+                  </div>
+                </div>
+                {subtitles.map((sub, index) => (
+                  <div key={index}
+                    className={`subtitle-item ${sub.start <= currentTime && sub.end > currentTime ? 'active' : ''}`}
+                    onClick={() => seekToSubtitle(sub.start)}>
+                    <span className="font-mono text-sm text-blue-600">[{formatTime(sub.start)} - {formatTime(sub.end)}]</span>
+                    <span className="ml-2 text-gray-800">{sub.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {isAudioLoaded && !isLoadingSubtitles && subtitles.length === 0 && (
+              <div className="mt-4 mb-4 p-3 text-center text-gray-500">
+                点击按钮生成字幕后生成摘要
+              </div>
+            )}
+
+            {/* AI Summary Section */}
+            {aiSummaryJson && (
+              <div className="mt-4 mb-4">
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <h3 className="text-md font-semibold text-gray-700 mb-2">摘要结果</h3>
+                  {aiSummaryJson.podcastTitle ? (
+                    <div className="mb-4">
+                      <div className="mb-3 bg-white p-3 rounded-md border border-gray-200">
+                        <h4 className="text-lg font-bold text-purple-700">{aiSummaryJson.podcastTitle}</h4>
+                        <h5 className="text-md font-semibold text-gray-800 mt-1">{aiSummaryJson.episodeTitle}</h5>
+                        <p className="text-sm text-gray-600 mt-2">{aiSummaryJson.overallSummary}</p>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-md font-semibold text-gray-700 mb-2">章节信息:</h3>
+                          <span className="text-sm text-yellow-500 cursor-pointer" onClick={splitByChapters}>自动分割</span>
+                        </div>
+                        {aiSummaryJson.chapters?.map((chapter, index) => (
+                          <div key={index} className="flex mb-2 bg-white p-2 rounded border border-gray-200">
+                            <span className="font-mono text-sm text-blue-600">[{formatTime(chapter.start)} - {formatTime(chapter.end)}]</span>
+                            <span className="ml-2 text-sm font-medium">{chapter.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-gray-700 mb-2">关键要点:</h4>
+                        <ul className="list-disc pl-5">
+                          {aiSummaryJson.keyTakeaways?.map((point, index) => <li key={index} className="text-sm mb-1">{point}</li>)}
+                        </ul>
+                      </div>
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-gray-700 mb-2">标签:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {aiSummaryJson.tags?.map((tag, index) => <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">#{tag}</span>)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-red-500">{aiSummaryJson.error || "摘要格式无效"}</p>
+                  )}
+                  <div className="mt-3">
+                    <button onClick={() => setShowJsonView(!showJsonView)} className="text-sm text-blue-600 hover:text-blue-800 mb-2 flex items-center">
+                      {showJsonView ? <FaChevronDown className="h-4 w-4 mr-1" /> : <FaChevronRight className="h-4 w-4 mr-1" />}
+                      {showJsonView ? '隐藏JSON格式' : '显示JSON格式'}
+                    </button>
+                    {showJsonView && <pre className="text-sm whitespace-pre-wrap break-all overflow-x-auto max-h-96 bg-gray-100 p-2 rounded">{JSON.stringify(aiSummaryJson, null, 2)}</pre>}
+                    <button onClick={copySummaryToClipboard} className="mt-3 py-1 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition duration-200">复制 JSON</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isAudioLoaded && (
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={generateSubtitles} className="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={!isAudioLoaded || isLoadingSubtitles || !apiConfig.apiUrl || !apiConfig.apiKey}>
+                  <FaMicrophone className="h-5 w-5 mr-1" />
+                  {isLoadingSubtitles ? '字幕生成中...' : '生成字幕'}
+                </button>
+                <button onClick={generateAiSummary} className="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={subtitles.length === 0 || isLoadingSummary || !apiConfig.apiUrl || !apiConfig.apiKey}>
+                  <FaBook className="h-5 w-5 mr-1" />
+                  {isLoadingSummary ? '摘要生成中...' : '摘要信息'}
+                </button>
+              </div>
+            )}
+            {isAudioLoaded && (!apiConfig.apiUrl || !apiConfig.apiKey) && (
+              <p className="text-xs text-red-500 text-center mt-1">请先在上方设置 API URL 和 Key 以启用此功能。</p>
+            )}
+          </div>
+
+          {/* 3. Split Controls */}
+          {isAudioLoaded && (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">3. 分割控制</h2>
+              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <h3 className="text-lg font-medium mb-3">自动分割</h3>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="silence-threshold" className="font-medium text-gray-700">静音阈值:</label>
+                    <span>{silenceThreshold} dB</span>
+                  </div>
+                  <input type="range" id="silence-threshold" min="-60" max="-20" value={silenceThreshold} onChange={(e) => setSilenceThreshold(Number(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer sensitivity-slider" />
+                </div>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="min-silence-duration" className="font-medium text-gray-700">最小静音持续时间:</label>
+                    <span>{minSilenceDuration} 秒</span>
+                  </div>
+                  <input type="range" id="min-silence-duration" min="0.2" max="2" step="0.1" value={minSilenceDuration} onChange={(e) => setMinSilenceDuration(Number(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer sensitivity-slider" />
+                </div>
+                <button onClick={autoSplitAudio} className="w-full py-2 px-4 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center" disabled={!isAudioLoaded}>
+                  <FaMagic className="h-5 w-5 mr-1" />
+                  自动检测分割点
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Segments List & AI Summary */}
+          {isAudioLoaded && (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">4. 分割片段列表</h2>
+              <div ref={segmentControlsContainerRef} className={isSegmentControlsSticky ? 'sticky-controls' : ''}>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <input type="checkbox" id="select-all-segments" className="mr-2" checked={selectAllSegments} onChange={toggleSelectAll} />
+                      <label htmlFor="select-all-segments" className="text-gray-700">全选</label>
+                    </div>
+                    <div className="flex">
+                      <button onClick={deleteSelectedSegments} disabled={selectedSegmentIds.length === 0} className="py-1 px-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        <FaTrash className="h-4 w-4 mr-1" />
+                        删除片段
+                      </button>
+                      <button onClick={mergeSelectedSegments} disabled={selectedSegmentIds.length < 2} className="py-1 px-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition duration-200 flex items-center ml-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <FaLink className="h-4 w-4 mr-1" />
+                        合并片段
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4 overflow-x-auto">
+                <table className="min-w-full bg-white">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-700 border-b border-gray-300">
+                      <th className="py-2 px-4 text-center w-16">选择</th>
+                      <th className="py-2 px-4 text-left w-16">序号</th>
+                      <th className="py-2 px-4 text-left">名称</th>
+                      <th className="py-2 px-4 text-left w-24">开始</th>
+                      <th className="py-2 px-4 text-left w-24">结束</th>
+                      <th className="py-2 px-4 text-left w-20">时长</th>
+                      <th className="py-2 px-4 text-center w-48">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {segments.length === 0 ? (
+                      <tr>
+                        <td className="py-4 text-center text-gray-500">未检测到分割片段</td>
+                      </tr>
+                    ) : (
+                      segments.map((segment, index) => (
+                        <tr key={segment.id} className="segment-row hover:bg-gray-50 border-b border-gray-300">
+                          <td className="py-3 px-4 text-center">
+                            <input type="checkbox" value={segment.id} checked={selectedSegmentIds.includes(segment.id)} onChange={(e) => {
+                              const id = e.target.value;
+                              setSelectedSegmentIds(prev => e.target.checked ? [...prev, id] : prev.filter(sid => sid !== id));
+                            }} />
+                          </td>
+                          <td className="py-3 px-4">{index + 1}</td>
+                          <td className="py-3 px-4">
+                            <input type="text" value={segment.name} onChange={(e) => {
+                              const newName = e.target.value;
+                              setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, name: newName } : s));
+                            }} onBlur={(e) => validateSegmentName(segment.id, e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400" />
+                          </td>
+                          <td className="py-3 px-4">{formatTime(segment.start)}</td>
+                          <td className="py-3 px-4">{formatTime(segment.end)}</td>
+                          <td className="py-3 px-4">{segment.duration.toFixed(1)}s</td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex justify-center space-x-2">
+                              <button onClick={() => previewSegment(segment.start, segment.end)} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm flex items-center" title="预览">
+                                <FaPlay className="h-4 w-4 mr-1" /> 预览
+                              </button>
+                              <button onClick={() => exportSegment(segment)} className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-sm flex items-center" title="导出">
+                                <FaDownload className="h-4 w-4 mr-1" /> 导出
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 5. Batch Rename */}
+              <h2 className="text-xl font-semibold mb-4 mt-6">5. 批量重命名 <span className="text-sm text-yellow-500">（检查格式）</span></h2>
+              <div className="mb-4">
+                <textarea value={batchRenameText} onChange={(e) => setBatchRenameText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-blue-500" rows={5} placeholder="请输入新的名称列表，每行一个名称，将按顺序应用到分割片段"></textarea>
+                <div className="mt-2 text-sm text-gray-500">提示：输入的行数应与分割片段数量相同，否则多余的行将被忽略，不足的片段将保持原名称。</div>
+                <div className="mt-3 flex justify-end">
+                  <button onClick={applyBatchRename} className="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 flex items-center" disabled={segments.length === 0 || !batchRenameText.trim()}>
+                    <FaCheck className="h-5 w-5 mr-1" />
+                    批量重命名
+                  </button>
+                </div>
+              </div>
+
+              {/* Export All */}
+              <div className="mt-6 flex justify-center">
+                <button onClick={exportAllSegments} className="py-3 px-6 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 flex items-center" disabled={!isAudioLoaded || segments.length === 0}>
+                  <FaFileArchive className="h-6 w-6 mr-2" />
+                  批量导出所有分割片段
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </FeatureLayout>
+
+      {/* --- External Scripts Loading --- */}
+      <Script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@6.6.4/dist/wavesurfer.min.js" onReady={() => setScriptsLoaded(true)} />
+      {scriptsLoaded && (
+        <>
+          <Script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js" />
+          <Script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.timeline.min.js" />
+          <Script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js" />
+          <Script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" />
+          <Script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js" />
+        </>
+      )}
+    </>
+  );
+}

@@ -21,17 +21,8 @@ export const featureLinks: NavLink[] = [
   { href: '/features/media-editor', label: '新媒体编辑' },
   { href: '/features/comment-editor', label: '评论编辑' },
   { href: '/features/image-editor', label: '图像编辑' },
+  { href: '/features/media-summarizer', label: '视音频摘要' },
   { href: 'https://qa.codepoem.top', label: '知识库', target: '_blank' },
-  { 
-    href: '#text', 
-    label: '文本工具', 
-    children: [
-      { href: '/polish', label: '文章润色' },
-      { href: '/features/text-summarizer', label: '文本摘要' },
-      { href: '/features/ai-rewrite', label: 'AI文本优化' },
-      { href: 'https://card.3min.top', label: '文字卡片', target: '_blank' },
-    ] 
-  },
   { 
     href: '#other', 
     label: '其他工具', 
@@ -40,6 +31,11 @@ export const featureLinks: NavLink[] = [
       { href: 'https://collagemaker.tools/zh/photo/', label: '拼图工具', target: '_blank' },
       { href: 'https://greenvideo.cc/', label: '视频下载', target: '_blank' },
       { href: 'https://deep.codepoem.top', label: '调研报告', target: '_blank' },
+
+      { href: '/polish', label: '文章润色' },
+      { href: '/features/text-summarizer', label: '文本摘要' },
+      { href: '/features/ai-rewrite', label: 'AI文本优化' },
+      { href: 'https://card.3min.top', label: '文字卡片', target: '_blank' },
     ] 
   },
   // { href: '/grok', label: 'API测试' },
