@@ -20,7 +20,7 @@ export default function ImageEditor() {
     const aspectRatios = ['1:1', '16:9', '4:3', '3:2', '9:16', '3:4', '2:3'];
 
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
-    const [contentImages, setContentImages] = useState<string[]>([]);
+    const [contentImages, setContentImages] = useState<string[]>(Array.from({ length: 0 }, () => ''));
     const [numImages, setNumImages] = useState(1);
     const styleOptions = ['默认', '3D卡通', '线稿', '像素', '写实', '水彩', '水墨画', '蜡笔', 'Q版', '钢笔淡彩', '版画'];
     const [style, setStyle] = useState(styleOptions[0]);
@@ -319,12 +319,12 @@ export default function ImageEditor() {
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 placeholder="输入图像描述..."
-                                className="p-2 pb-5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                className="p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                 rows={5}
                             />
-                            <div className="absolute bottom-3 left-3 flex items-center gap-3">
+                            <div className="flex items-center gap-3">
                                 {isLoading ? <FaSpinner className="animate-spin text-gray-500" /> : (
-                                    <>
+                                    <div className="flex items-center gap-3">
                                         <button onClick={handleTranslate} className="flex items-center gap-1 text-gray-500 hover:text-gray-700" title="翻译">
                                             <FaLanguage size={18} />
                                             <span className="ml-1 text-xs">翻译</span>
@@ -333,11 +333,11 @@ export default function ImageEditor() {
                                             <FaMagic size={13} />
                                             <span className="ml-1 text-xs">智能创作</span>
                                         </button>
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                             <div className="flex items-end gap-2">
                                 <div className="flex-grow">
                                     <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-700">尺寸</label>
@@ -457,7 +457,7 @@ export default function ImageEditor() {
                                     <FaSpinner className="animate-spin mr-2" /> 图像生成中...
                                 </div>
                             ) : contentImages.length > 0 ? (
-                                <div className="columns-2 md:columns-3 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                                     <PhotoProvider toolbarRender={({ onScale, scale, onRotate, rotate }) => {
                                         return (
                                             <>
@@ -477,7 +477,7 @@ export default function ImageEditor() {
                                         );
                                     }}>
                                         {contentImages.map((image, index) => (
-                                            <div className='view-list relative rounded-lg overflow-hidden mb-6 break-inside-avoid border-1 border-gray-200 hover:border-blue-500' key={index}>
+                                            <div className='view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500' key={index}>
                                                 <PhotoView src={image}>
                                                     <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
                                                 </PhotoView>

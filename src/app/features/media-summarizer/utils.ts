@@ -20,7 +20,6 @@ export const extractAudioFromVideo = async (videoFile: File): Promise<File> => {
     const audioFile = new File([wavBlob], audioFileName, { type: 'audio/wav' });
 
     return audioFile;
-
   } catch (error) {
     console.error('音频提取过程中发生错误:', error);
     if (error instanceof DOMException) {

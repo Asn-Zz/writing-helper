@@ -3,15 +3,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import {
-  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook, FaTrash, FaMagic, FaChevronRight, FaChevronDown,
+  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook, FaTrash, FaChevronRight, FaChevronDown,
   FaCloudUploadAlt
 } from 'react-icons/fa';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
-import { generate } from '@/app/lib/api';
-import { Segment, Subtitle, AiSummary } from './types';
-import SegmentsManager from './components/SegmentsManager';
 import { getIsAuthed } from '@/app/lib/auth';
+import { generate } from '@/app/lib/api';
+import SegmentsManager from './components/SegmentsManager';
+import { Segment, Subtitle, AiSummary } from './types';
 import { extractAudioFromVideo } from './utils';
 import './style.css';
 
