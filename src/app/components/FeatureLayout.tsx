@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from './Navigation';
 import ApiSettingsBlock from './ApiSettingBlock';
+import { getIsAuthed } from '@/app/lib/auth';
 
 type FeatureLayoutProps = {
   children: React.ReactNode;
@@ -22,12 +23,7 @@ export default function FeatureLayout({
 
   const [isAuthed, setIsAuthed] = useState(false);
   useEffect(() => {
-    const storeAuthKey = 'writing_helper_auth_token';
-    const authKey = localStorage.getItem(storeAuthKey);
-
-    if (authKey === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
-      setIsAuthed(true);
-    }
+    setIsAuthed(getIsAuthed());
   }, []);
 
   return (

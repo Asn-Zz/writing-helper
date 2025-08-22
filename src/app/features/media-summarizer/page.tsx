@@ -11,6 +11,8 @@ import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { Segment, Subtitle, AiSummary } from './types';
 import SegmentsManager from './components/SegmentsManager';
+import { getIsAuthed } from '@/app/lib/auth';
+import { extractAudioFromVideo } from './utils';
 import './style.css';
 
 // Helper function to format time
@@ -48,7 +50,7 @@ export default function AudioEditorPage() {
   const [showSegmentsManager, setShowSegmentsManager] = useState(false);
 
   // --- AI Feature State ---
-  const { apiConfig, setApiConfig } = useApiSettings();
+  const { apiConfig } = useApiSettings();
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
   const [aiSummaryJson, setAiSummaryJson] = useState<AiSummary | null>(null);
@@ -222,18 +224,20 @@ export default function AudioEditorPage() {
   }, [scriptsLoaded, updateSegmentsList]);
 
   const processFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('audio/')) {
-      alert('请选择有效的音频文件');
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (!isAudio && !isVideo) {
+      alert('请选择有效的音频或视频文件');
       return;
     }
+    
     resetStateBeforeLoad();
     currentAudioFile.current = file;
     setFileInfo(`已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     setOriginalFileName(file.name.replace(/\.[^/.]+$/, ""));
 
-    const fileURL = URL.createObjectURL(file);
-
-    showLoading('正在加载音频文件...');
+    showLoading(isVideo ? '正在提取音频...' : '正在加载音频文件...');
     setIsAudioLoaded(false);
 
     if (!wavesurferInstance.current) {
@@ -241,12 +245,19 @@ export default function AudioEditorPage() {
     }
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
+      let audioFile = file;
+      if (isVideo) {
+        // 对于视频文件，需要提取音频
+        audioFile = await extractAudioFromVideo(file);
+      }
+      
+      const fileURL = URL.createObjectURL(audioFile);
+      const arrayBuffer = await audioFile.arrayBuffer();
       audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
       audioBuffer.current = await audioContext.current.decodeAudioData(arrayBuffer.slice(0));
       wavesurferInstance.current.load(fileURL);
     } catch (error) {
-      console.error("Error processing audio file:", error);
+      console.error("Error processing media file:", error);
       hideLoading();
       resetState();
     }
@@ -262,11 +273,11 @@ export default function AudioEditorPage() {
     event.preventDefault();
     setIsDraggingOver(false);
     const file = event.dataTransfer.files[0];
-    if (file && file.type.startsWith('audio/')) {
+    if (file && (file.type.startsWith('audio/') || file.type.startsWith('video/'))) {
       processFile(file);
       if (audioInputRef.current) audioInputRef.current.value = '';
     } else {
-      alert('请拖放有效的音频文件');
+      alert('请拖放有效的音频或视频文件');
     }
   };
 
@@ -378,7 +389,7 @@ export default function AudioEditorPage() {
 
   const generateSubtitles = async () => {
     if (!currentAudioFile.current) {
-      alert('请先上传音频文件');
+      alert('请先上传音频或视频文件');
       return;
     }
 
@@ -530,11 +541,32 @@ export default function AudioEditorPage() {
     }
   };
 
+  const [parseUrl, setParseUrl] = useState("");
+  const handleParse = async () => {
+    if (!getIsAuthed()) { return alert('请先登录'); }
+    setIsLoading(true);
+    showLoading('正在解析音频...');
+    
+    const response = await fetch(parseUrl);
+    try {
+      const blob = await response.blob();
+      const fileName = parseUrl.split('/').pop() || 'audio.mp3';
+      const file = new File([blob], fileName, { type: blob.type });
+      
+      processFile(file);
+    } catch (error) {
+      console.error('解析音频时出错:', error);
+    } finally {
+      setIsLoading(false);
+      hideLoading();
+    }
+  };
+
   return (
     <>
       <FeatureLayout
         title="媒体摘要工具"
-        subtitle="快速生成音频的摘要，提取关键信息和快速剪切"
+        subtitle="支持音频和视频文件，快速生成摘要、提取关键信息和剪切"
       >
         {isLoading && (
           <div id="loading-overlay">
@@ -548,7 +580,10 @@ export default function AudioEditorPage() {
         <div className="container mx-auto">
           {/* 1. Upload */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <h2 className="text-lg font-semibold mb-3">1. 上传音频</h2>
+            <h2 className="text-lg font-semibold mb-3 flex items-center justify-between">
+              1. 上传文件 
+              <a href='https://greenvideo.cc/' target='_blank' className='text-sm text-blue-500 hover:underline'>在线解析</a>
+            </h2>
             <div className="flex flex-col items-center gap-3">
               <label className="w-full cursor-pointer">
                 <div
@@ -558,11 +593,18 @@ export default function AudioEditorPage() {
                   onDrop={handleDrop}
                 >
                   <FaCloudUploadAlt className="text-5xl text-gray-400 mx-auto" />
-                  <p className="my-2">支持mp3、wav、m3u8等格式</p>
+                  <p className="my-2">支持主流视/音频格式，如mp3、mp4等</p>
                   {fileInfo && <p className="text-sm text-gray-500">{fileInfo}</p>}
-                  <input type="file" id="audio-input" accept="audio/*" className="hidden" onChange={handleFileUpload} ref={audioInputRef} />
+                  <input type="file" id="audio-input" accept="audio/*,video/*" className="hidden" onChange={handleFileUpload} ref={audioInputRef} />
                 </div>
               </label>
+
+              <div className='w-full flex flex-col md:flex-row gap-4 mb-4'>
+                <input type="text" className='flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500' value={parseUrl} onChange={(e) => setParseUrl(e.target.value)} placeholder="请输入视音频URL" />
+                <button className='py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-200 disabled:opacity-80' onClick={handleParse} disabled={isLoading || !parseUrl}>
+                  {isLoading ? '解析中...' : '立即解析'}
+                </button>
+              </div>
             </div>
           </div>
 

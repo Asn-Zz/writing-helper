@@ -1,0 +1,97 @@
+/**
+ * 从视频文件中提取音频，并将其作为 WAV 文件返回。
+ * 此版本使用 decodeAudioData API，是最高效和可靠的方法。
+ */
+export const extractAudioFromVideo = async (videoFile: File): Promise<File> => {
+  if (!window.AudioContext && !(window as any).webkitAudioContext) {
+    throw new Error('浏览器不支持 Web Audio API');
+  }
+
+  let audioContext: AudioContext | null = null;
+
+  try {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    const arrayBuffer = await videoFile.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    const wavBlob = audioBufferToWav(audioBuffer);
+    const audioFileName = `${videoFile.name.split('.').slice(0, -1).join('.') || 'extracted_audio'}.wav`;
+    const audioFile = new File([wavBlob], audioFileName, { type: 'audio/wav' });
+
+    return audioFile;
+
+  } catch (error) {
+    console.error('音频提取过程中发生错误:', error);
+    if (error instanceof DOMException) {
+        throw new Error(`无法解码音频数据，文件可能已损坏、无音轨或格式不受支持: ${error.message}`);
+    }
+    throw error;
+  } finally {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+  }
+};
+
+/**
+ * 将 AudioBuffer 对象编码为 WAV 格式的 Blob。
+ */
+const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+  const numOfChan = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length;
+  const bufferLength = length * numOfChan * 2 + 44;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+
+  let pos = 0;
+
+  const writeString = (str: string) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(pos++, str.charCodeAt(i));
+    }
+  };
+
+  const setUint16 = (data: number) => {
+    view.setUint16(pos, data, true);
+    pos += 2;
+  };
+
+  const setUint32 = (data: number) => {
+    view.setUint32(pos, data, true);
+    pos += 4;
+  };
+
+  writeString('RIFF');
+  setUint32(bufferLength - 8);
+  writeString('WAVE');
+
+  writeString('fmt ');
+  setUint32(16);
+  setUint16(1);
+  setUint16(numOfChan);
+  setUint32(sampleRate);
+  setUint32(sampleRate * numOfChan * 2);
+  setUint16(numOfChan * 2);
+  setUint16(16);
+
+  writeString('data');
+  setUint32(length * numOfChan * 2);
+
+  const channels = [];
+  for (let i = 0; i < numOfChan; i++) {
+    channels.push(buffer.getChannelData(i));
+  }
+
+  for (let i = 0; i < length; i++) {
+    for (let j = 0; j < numOfChan; j++) {
+      const sample = Math.max(-1, Math.min(1, channels[j][i]));
+      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(pos, intSample, true);
+      pos += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+};

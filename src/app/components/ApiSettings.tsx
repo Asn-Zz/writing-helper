@@ -11,6 +11,7 @@ import {
   ApiProvider
 } from '@/app/lib/constant'
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { storeAuthKey } from '@/app/lib/auth';
 
 export interface ApiConfigProps {
   apiProvider: ApiProvider;
@@ -170,7 +171,6 @@ export default function ApiSettings({
     }
   };
 
-  const storeAuthKey = 'writing_helper_auth_token';
   const setAuthToken = () => {
     const password = window.prompt('请输入访问密码:');
 

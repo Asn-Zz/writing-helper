@@ -11,6 +11,7 @@ import { generate } from '@/app/lib/api';
 import { request } from '@/app/lib/request';
 import ThesaurusManager from './ThesaurusManager';
 import { Issue, Thesaurus } from '../types';
+import { getIsAuthed } from '@/app/lib/auth';
 
 const PROOFREADING_MODEL = 'deepseek-v3';
 const PROOFREADING_PROMPT = '你是一个专业的文章校对编辑，擅长发现并修正中文语法、拼写错误，同时保持原文风格。';
@@ -174,9 +175,8 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         const pastedText = event.clipboardData.getData('text');
         const urlRegex = /^(https|http):\/\/[^\s/$.?#].[^\s]*$/i;
         const apiKey = process.env.NEXT_PUBLIC_FIRE_KEY;
-        const authKey = localStorage.getItem('writing_helper_auth_token');
         
-        if (urlRegex.test(pastedText) && apiKey && authKey === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
+        if (urlRegex.test(pastedText) && apiKey && getIsAuthed()) {
             event.preventDefault();
             if (window.confirm(`检测到链接，是否要抓取网页内容？\n${pastedText}`)) {
                 setIsLoading(true);
