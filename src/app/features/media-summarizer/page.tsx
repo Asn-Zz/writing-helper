@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import {
-  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, FaBook, FaTrash, FaChevronRight, FaChevronDown,
-  FaCloudUploadAlt
+  FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, 
+  FaBook, FaTrash, FaChevronRight, FaChevronDown, FaCamera, FaCloudUploadAlt
 } from 'react-icons/fa';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
@@ -12,7 +12,7 @@ import { getIsAuthed } from '@/app/lib/auth';
 import { generate } from '@/app/lib/api';
 import SegmentsManager from './components/SegmentsManager';
 import { Segment, Subtitle, AiSummary } from './types';
-import { extractAudioFromVideo } from './utils';
+import { extractAudioFromVideo, parseSubtitleContent } from './utils';
 import './style.css';
 
 // Helper function to format time
@@ -32,6 +32,8 @@ export default function AudioEditorPage() {
   const waveformRef = useRef<any>(null);
   const timelineRef = useRef<any>(null);
   const audioInputRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const currentVideoFile = useRef<File | null>(null);
 
   // --- State Management ---
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -48,6 +50,8 @@ export default function AudioEditorPage() {
   const [originalFileName, setOriginalFileName] = useState("");
   const [showJsonView, setShowJsonView] = useState(false);
   const [showSegmentsManager, setShowSegmentsManager] = useState(false);
+  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
 
   // --- AI Feature State ---
   const { apiConfig } = useApiSettings();
@@ -199,18 +203,51 @@ export default function AudioEditorPage() {
         resetState();
       }
     });
-    wavesurferInstance.current.on('audioprocess', (time : number) => setCurrentTime(time));
-    wavesurferInstance.current.on('seek', (progress : number) => {
-      if (wavesurferInstance.current) {
-        setCurrentTime(progress * wavesurferInstance.current.getDuration());
+    wavesurferInstance.current.on('audioprocess', (time : number) => {
+      setCurrentTime(time);
+      
+      // 同步视频播放进度
+      if (isVideoMode && videoRef.current) {
+        videoRef.current.currentTime = time;
       }
     });
-    wavesurferInstance.current.on('play', () => setIsPlaying(true));
-    wavesurferInstance.current.on('pause', () => setIsPlaying(false));
+    wavesurferInstance.current.on('seek', (progress : number) => {
+      if (wavesurferInstance.current) {
+        const time = progress * wavesurferInstance.current.getDuration();
+        setCurrentTime(time);
+        
+        // 同步视频播放进度
+        if (isVideoMode && videoRef.current) {
+          videoRef.current.currentTime = time;
+        }
+      }
+    });
+    wavesurferInstance.current.on('play', () => {
+      setIsPlaying(true);
+      
+      // 同步播放视频
+      if (isVideoMode && videoRef.current) {
+        videoRef.current.play().catch(e => console.error("Video play error:", e));
+      }
+    });
+    wavesurferInstance.current.on('pause', () => {
+      setIsPlaying(false);
+      
+      // 暂停视频
+      if (isVideoMode && videoRef.current) {
+        videoRef.current.pause();
+      }
+    });
     wavesurferInstance.current.on('finish', () => {
       setIsPlaying(false);
       wavesurferInstance.current.seekTo(0);
       setCurrentTime(0);
+      
+      // 重置视频播放
+      if (isVideoMode && videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.pause();
+      }
     });
     wavesurferInstance.current.on('region-created', updateSegmentsList);
     wavesurferInstance.current.on('region-updated', updateSegmentsList);
@@ -234,8 +271,10 @@ export default function AudioEditorPage() {
     
     resetStateBeforeLoad();
     currentAudioFile.current = file;
+    currentVideoFile.current = isVideo ? file : null;
     setFileInfo(`已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     setOriginalFileName(file.name.replace(/\.[^/.]+$/, ""));
+    setIsVideoMode(isVideo);
 
     showLoading(isVideo ? '正在提取音频...' : '正在加载音频文件...');
     setIsAudioLoaded(false);
@@ -256,6 +295,11 @@ export default function AudioEditorPage() {
       audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
       audioBuffer.current = await audioContext.current.decodeAudioData(arrayBuffer.slice(0));
       wavesurferInstance.current.load(fileURL);
+      
+      // 如果是视频文件，设置视频源
+      if (isVideo && videoRef.current) {
+        videoRef.current.src = URL.createObjectURL(file);
+      }
     } catch (error) {
       console.error("Error processing media file:", error);
       hideLoading();
@@ -287,6 +331,7 @@ export default function AudioEditorPage() {
     setIsAudioLoaded(false);
     audioBuffer.current = null;
     currentAudioFile.current = null;
+    currentVideoFile.current = null;
     setSegments([]);
     setCurrentTime(0);
     setTotalTime(0);
@@ -294,6 +339,7 @@ export default function AudioEditorPage() {
     setSubtitles([]);
     setAiSummaryJson(null);
     setFullTranscript('');
+    setIsVideoMode(false);
   };
 
   const resetState = () => {
@@ -302,10 +348,28 @@ export default function AudioEditorPage() {
     setOriginalFileName("");
     if (audioInputRef.current) audioInputRef.current.value = '';
     if (wavesurferInstance.current) wavesurferInstance.current.empty();
+    
+    // 清理视频源
+    if (videoRef.current) {
+      videoRef.current.src = "";
+    }
   };
 
   // --- Control Functions ---
-  const playPause = () => { if (wavesurferInstance.current && isAudioLoaded) wavesurferInstance.current.playPause(); };
+  const playPause = () => {
+    if (wavesurferInstance.current && isAudioLoaded) {
+      wavesurferInstance.current.playPause();
+      
+      // 如果是视频模式，同步控制视频播放
+      if (isVideoMode && videoRef.current) {
+        if (wavesurferInstance.current.isPlaying()) {
+          videoRef.current.play().catch(e => console.error("Video play error:", e));
+        } else {
+          videoRef.current.pause();
+        }
+      }
+    }
+  };
   const zoomIn = () => { if (wavesurferInstance.current) wavesurferInstance.current.zoom(wavesurferInstance.current.params.minPxPerSec * 1.2); };
   const zoomOut = () => { if (wavesurferInstance.current) wavesurferInstance.current.zoom(Math.max(wavesurferInstance.current.params.minPxPerSec / 1.2, 20)); };
 
@@ -496,6 +560,7 @@ export default function AudioEditorPage() {
     if (hasRegions && !confirm("将清除现有分割点并按字幕创建新分割点，是否继续？")) {
       return;
     }
+    setShowSegmentsManager(true)
     wavesurferInstance.current.clearRegions();
     subtitles.forEach(subtitle => addMarkerAtPosition(subtitle.start));
     if (subtitles.length > 0) {
@@ -523,6 +588,7 @@ export default function AudioEditorPage() {
     if (hasRegions && !confirm("将清除现有分割点并按章节创建新分割点，是否继续？")) {
       return;
     }
+    setShowSegmentsManager(true)
     wavesurferInstance.current.clearRegions();
     aiSummaryJson.chapters.forEach(chapter => addMarkerAtPosition(chapter.start));
     if (aiSummaryJson.chapters.length > 0) {
@@ -541,6 +607,10 @@ export default function AudioEditorPage() {
     }
   };
 
+  // --- Subtitle State ---
+  const subtitleInputRef = useRef<any>(null);
+  const [subtitleFileInfo, setSubtitleFileInfo] = useState("未选择字幕文件");
+  
   const [parseUrl, setParseUrl] = useState("");
   const handleParse = async () => {
     if (!getIsAuthed()) { return alert('请先登录'); }
@@ -562,11 +632,106 @@ export default function AudioEditorPage() {
     }
   };
 
+  // --- Subtitle Handling Functions ---
+  const handleSubtitleUpload = (event: any) => {
+    const file = event.target.files[0];
+    if (file) processSubtitleFile(file);
+  };
+
+  const processSubtitleFile = (file: File) => {
+    if (!file.name.endsWith('.srt') && !file.name.endsWith('.vtt')) {
+      alert('请选择有效的字幕文件 (.srt 或 .vtt)');
+      return;
+    }
+    
+    setSubtitleFileInfo(`已选择: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        try {
+          const parsedSubtitles = parseSubtitleContent(content, file.name.endsWith('.vtt'));
+          setSubtitles(parsedSubtitles);
+        } catch (error) {
+          console.error('解析字幕文件时出错:', error);
+          alert('字幕文件解析失败，请确保文件格式正确');
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current && wavesurferInstance.current && !wavesurferInstance.current.isPlaying()) {
+      const time = videoRef.current.currentTime;
+      setCurrentTime(time);
+      wavesurferInstance.current.seekTo(time / totalTime);
+    }
+  };
+
+  const handleVideoPlay = () => {
+    if (wavesurferInstance.current && !wavesurferInstance.current.isPlaying()) {
+      wavesurferInstance.current.play();
+    }
+  };
+
+  const handleVideoPause = () => {
+    if (wavesurferInstance.current && wavesurferInstance.current.isPlaying()) {
+      wavesurferInstance.current.pause();
+    }
+  };
+
+  // 视频截图功能
+  const captureScreenshot = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            setScreenshotUrl(url);
+            
+            // 自动下载截图
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${originalFileName || 'screenshot'}-${formatTime(currentTime)}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // 清理URL对象
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        }, 'image/png');
+      }
+    }
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.addEventListener('timeupdate', handleVideoTimeUpdate);
+      video.addEventListener('play', handleVideoPlay);
+      video.addEventListener('pause', handleVideoPause);
+      
+      return () => {
+        video.removeEventListener('timeupdate', handleVideoTimeUpdate);
+        video.removeEventListener('play', handleVideoPlay);
+        video.removeEventListener('pause', handleVideoPause);
+      };
+    }
+  }, [totalTime]);
+
   return (
     <>
       <FeatureLayout
         title="媒体摘要工具"
-        subtitle="支持音频和视频文件，快速生成摘要、提取关键信息和剪切"
+        subtitle="支持视音频文件，快速生成摘要、提取关键信息和剪切"
       >
         {isLoading && (
           <div id="loading-overlay">
@@ -593,7 +758,7 @@ export default function AudioEditorPage() {
                   onDrop={handleDrop}
                 >
                   <FaCloudUploadAlt className="text-5xl text-gray-400 mx-auto" />
-                  <p className="my-2">支持主流视/音频格式，如mp3、mp4等</p>
+                  <p className="my-2">支持主流视音频格式，如mp3、mp4等</p>
                   {fileInfo && <p className="text-sm text-gray-500">{fileInfo}</p>}
                   <input type="file" id="audio-input" accept="audio/*,video/*" className="hidden" onChange={handleFileUpload} ref={audioInputRef} />
                 </div>
@@ -610,7 +775,19 @@ export default function AudioEditorPage() {
 
           {/* 2. Waveform & Subtitles */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">2. 音频波形与字幕</h2>
+            <h2 className="text-xl font-semibold mb-4 flex items-center justify-between">
+              2. 音频波形与字幕
+              <span className="text-sm text-gray-500 cursor-pointer" onClick={() => isAudioLoaded && subtitleInputRef.current?.click()}>
+                {subtitleInputRef.current?.value ? subtitleFileInfo : '上传字幕文件'}
+              </span>
+              <input 
+                type="file" 
+                accept=".srt,.vtt" 
+                onChange={handleSubtitleUpload} 
+                ref={subtitleInputRef} 
+                className='hidden'
+              />
+            </h2>
 
             {isAudioLoaded && (
               <div className="mb-4">
@@ -627,6 +804,27 @@ export default function AudioEditorPage() {
                       清除所有分割点
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {isVideoMode && (
+              <div className="mb-4 relative">
+                <video 
+                  ref={videoRef}
+                  className="w-full max-h-64 rounded-lg border border-gray-300"
+                  controls
+                  muted
+                />
+
+                <div className="absolute top-3 right-3">
+                  <button 
+                    onClick={captureScreenshot}
+                    className="bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-lg transition-all cursor-pointer"
+                    title="截图"
+                  >
+                    <FaCamera className="h-5 w-5 text-blue-500" />
+                  </button>
                 </div>
               </div>
             )}

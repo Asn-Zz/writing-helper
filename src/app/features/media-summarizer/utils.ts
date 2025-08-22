@@ -1,3 +1,5 @@
+import { Subtitle } from './types';
+
 /**
  * 从视频文件中提取音频，并将其作为 WAV 文件返回。
  * 此版本使用 decodeAudioData API，是最高效和可靠的方法。
@@ -23,7 +25,7 @@ export const extractAudioFromVideo = async (videoFile: File): Promise<File> => {
   } catch (error) {
     console.error('音频提取过程中发生错误:', error);
     if (error instanceof DOMException) {
-        throw new Error(`无法解码音频数据，文件可能已损坏、无音轨或格式不受支持: ${error.message}`);
+      throw new Error(`无法解码音频数据，文件可能已损坏、无音轨或格式不受支持: ${error.message}`);
     }
     throw error;
   } finally {
@@ -93,4 +95,111 @@ const audioBufferToWav = (buffer: AudioBuffer): Blob => {
   }
 
   return new Blob([arrayBuffer], { type: 'audio/wav' });
+};
+
+export const parseSubtitleContent = (content: string, isVtt: boolean): Subtitle[] => {
+  if (isVtt) {
+    return parseVttContent(content);
+  } else {
+    return parseSrtContent(content);
+  }
+};
+
+const parseVttContent = (content: string): Subtitle[] => {
+  const lines = content.split(/\r?\n/);
+  const subtitles: Subtitle[] = [];
+  let i = 0;
+
+  // Skip WEBVTT header
+  while (i < lines.length && lines[i].trim() !== '') {
+    i++;
+  }
+  i++; // Skip empty line after header
+
+  while (i < lines.length) {
+    // Skip empty lines
+    while (i < lines.length && lines[i].trim() === '') {
+      i++;
+    }
+
+    if (i >= lines.length) break;
+
+    // Skip cue index
+    if (/^\d+$/.test(lines[i])) {
+      i++;
+    }
+
+    if (i >= lines.length) break;
+
+    // Parse time
+    const timeLine = lines[i];
+    const timeMatch = timeLine.match(/(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+    if (!timeMatch) {
+      i++;
+      continue;
+    }
+
+    const startTime = parseTime(timeMatch[1]);
+    const endTime = parseTime(timeMatch[2]);
+
+    i++;
+
+    // Parse text
+    let text = '';
+    while (i < lines.length && lines[i].trim() !== '') {
+      if (text) text += ' ';
+      text += lines[i].trim();
+      i++;
+    }
+
+    if (text) {
+      subtitles.push({
+        start: startTime,
+        end: endTime,
+        text: text
+      });
+    }
+  }
+
+  return subtitles;
+};
+
+const parseSrtContent = (content: string): Subtitle[] => {
+  const blocks = content.split(/\r?\n\r?\n/);
+  const subtitles: Subtitle[] = [];
+
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length < 3) continue;
+
+    // Skip index line
+    const timeLine = lines[1];
+    const timeMatch = timeLine.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
+    if (!timeMatch) continue;
+
+    const startTime = parseTime(timeMatch[1].replace(',', '.'));
+    const endTime = parseTime(timeMatch[2].replace(',', '.'));
+
+    // Parse text
+    const textLines = lines.slice(2);
+    const text = textLines.join(' ').trim();
+
+    if (text) {
+      subtitles.push({
+        start: startTime,
+        end: endTime,
+        text: text
+      });
+    }
+  }
+
+  return subtitles;
+};
+
+const parseTime = (timeStr: string): number => {
+  const parts = timeStr.split(':');
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  const seconds = parseFloat(parts[2]);
+  return hours * 3600 + minutes * 60 + seconds;
 };
