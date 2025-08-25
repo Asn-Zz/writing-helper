@@ -203,3 +203,11 @@ const parseTime = (timeStr: string): number => {
   const seconds = parseFloat(parts[2]);
   return hours * 3600 + minutes * 60 + seconds;
 };
+
+// Helper function to format time
+export const formatTime = (timeInSeconds: number) => {
+  if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
+  const minutes = Math.floor(timeInSeconds / 60);
+  const seconds = Math.floor(timeInSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};

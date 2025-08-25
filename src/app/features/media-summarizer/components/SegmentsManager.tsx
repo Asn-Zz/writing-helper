@@ -3,14 +3,7 @@
 import { useState } from 'react';
 import { FaPlay, FaDownload, FaFileArchive, FaCheck, FaTrash, FaLink, FaMagic } from 'react-icons/fa';
 import { Segment } from '../types';
-
-// Helper function to format time
-const formatTime = (timeInSeconds: number) => {
-  if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
-  const minutes = Math.floor(timeInSeconds / 60);
-  const seconds = Math.floor(timeInSeconds % 60);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
+import { formatTime } from '../utils';
 
 interface SegmentsManagerProps {
   segments: Segment[];

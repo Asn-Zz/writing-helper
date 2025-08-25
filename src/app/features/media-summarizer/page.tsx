@@ -4,24 +4,17 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import {
   FaPlusCircle, FaPlayCircle, FaPauseCircle, FaMicrophone, 
-  FaBook, FaTrash, FaChevronRight, FaChevronDown, FaCamera, FaCloudUploadAlt
+  FaBook, FaTrash, FaCamera, FaCloudUploadAlt
 } from 'react-icons/fa';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { getIsAuthed } from '@/app/lib/auth';
 import { generate } from '@/app/lib/api';
 import SegmentsManager from './components/SegmentsManager';
+import Summary from './components/Summary';
 import { Segment, Subtitle, AiSummary } from './types';
-import { extractAudioFromVideo, parseSubtitleContent } from './utils';
+import { extractAudioFromVideo, parseSubtitleContent, formatTime } from './utils';
 import './style.css';
-
-// Helper function to format time
-const formatTime = (timeInSeconds: number) => {
-  if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
-  const minutes = Math.floor(timeInSeconds / 60);
-  const seconds = Math.floor(timeInSeconds % 60);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
 
 export default function AudioEditorPage() {
   // --- Refs for instances and DOM elements ---
@@ -48,7 +41,6 @@ export default function AudioEditorPage() {
   const [batchRenameText, setBatchRenameText] = useState("");
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [originalFileName, setOriginalFileName] = useState("");
-  const [showJsonView, setShowJsonView] = useState(false);
   const [showSegmentsManager, setShowSegmentsManager] = useState(false);
   const [isVideoMode, setIsVideoMode] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
@@ -572,14 +564,6 @@ export default function AudioEditorPage() {
     updateSegmentsList();
   };
 
-  const copySummaryToClipboard = () => {
-    if (aiSummaryJson) {
-      navigator.clipboard.writeText(JSON.stringify(aiSummaryJson, null, 2))
-        .then(() => alert('AI 摘要 (JSON) 已复制到剪贴板!'))
-        .catch(err => alert('复制失败: ' + err));
-    }
-  };
-
   const splitByChapters = () => {
     if (!aiSummaryJson || !aiSummaryJson.chapters || aiSummaryJson.chapters.length === 0) {
       alert("没有可用的章节数据，请先生成AI摘要");
@@ -747,7 +731,7 @@ export default function AudioEditorPage() {
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
             <h2 className="text-lg font-semibold mb-3 flex items-center justify-between">
               1. 上传文件 
-              <a href='https://greenvideo.cc/' target='_blank' className='text-sm text-blue-500 hover:underline'>在线解析</a>
+              <a href='https://greenvideo.cc/' target='_blank' className='text-sm text-blue-500 hover:underline'>视频解析</a>
             </h2>
             <div className="flex flex-col items-center gap-3">
               <label className="w-full cursor-pointer">
@@ -775,19 +759,23 @@ export default function AudioEditorPage() {
 
           {/* 2. Waveform & Subtitles */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center justify-between">
-              2. 音频波形与字幕
-              <span className="text-sm text-gray-500 cursor-pointer" onClick={() => isAudioLoaded && subtitleInputRef.current?.click()}>
-                {subtitleInputRef.current?.value ? subtitleFileInfo : '上传字幕文件'}
+            <div className="text-xl font-semibold mb-4 flex items-center justify-between">
+              <span>
+                2. 波形与字幕
+                <span className="text-sm text-gray-500 cursor-pointer ml-3" onClick={() => isAudioLoaded ? subtitleInputRef.current?.click() : alert('请先上传文件')}>
+                  {subtitleInputRef.current?.value ? subtitleFileInfo : '点击上传字幕'}
+                </span>
+                <input 
+                  type="file" 
+                  accept=".srt,.vtt" 
+                  onChange={handleSubtitleUpload} 
+                  ref={subtitleInputRef} 
+                  className='hidden'
+                />
               </span>
-              <input 
-                type="file" 
-                accept=".srt,.vtt" 
-                onChange={handleSubtitleUpload} 
-                ref={subtitleInputRef} 
-                className='hidden'
-              />
-            </h2>
+
+              <a href="https://www.67tool.com/audio/asr" target="_blank" className="text-sm text-blue-500 hover:underline">字幕提取</a>
+            </div>
 
             {isAudioLoaded && (
               <div className="mb-4">
@@ -885,54 +873,7 @@ export default function AudioEditorPage() {
       
             {/* AI Summary Section */}
             {aiSummaryJson && (
-              <div className="mt-4 mb-4">
-                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                  <h3 className="text-md font-semibold text-gray-700 mb-2">摘要结果</h3>
-                  {aiSummaryJson.podcastTitle ? (
-                    <div className="mb-4">
-                      <div className="mb-3 bg-white p-3 rounded-md border border-gray-200">
-                        <h4 className="text-lg font-bold text-purple-700">{aiSummaryJson.podcastTitle}</h4>
-                        <h5 className="text-md font-semibold text-gray-800 mt-1">{aiSummaryJson.episodeTitle}</h5>
-                        <p className="text-sm text-gray-600 mt-2">{aiSummaryJson.overallSummary}</p>
-                      </div>
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-md font-semibold text-gray-700 mb-2">章节信息:</h3>
-                          <span className="text-sm text-yellow-500 cursor-pointer" onClick={splitByChapters}>自动分割</span>
-                        </div>
-                        {aiSummaryJson.chapters?.map((chapter, index) => (
-                          <div key={index} className="flex mb-2 bg-white p-2 rounded border border-gray-200">
-                            <span className="font-mono text-sm text-blue-600">[{formatTime(chapter.start)} - {formatTime(chapter.end)}]</span>
-                            <span className="ml-2 text-sm font-medium">{chapter.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">关键要点:</h4>
-                        <ul className="list-disc pl-5">
-                          {aiSummaryJson.keyTakeaways?.map((point, index) => <li key={index} className="text-sm mb-1">{point}</li>)}
-                        </ul>
-                      </div>
-                      <div className="mt-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">标签:</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {aiSummaryJson.tags?.map((tag, index) => <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">#{tag}</span>)}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-red-500">{aiSummaryJson.error || "摘要格式无效"}</p>
-                  )}
-                  <div className="mt-3">
-                    <button onClick={() => setShowJsonView(!showJsonView)} className="text-sm text-blue-600 hover:text-blue-800 mb-2 flex items-center">
-                      {showJsonView ? <FaChevronDown className="h-4 w-4 mr-1" /> : <FaChevronRight className="h-4 w-4 mr-1" />}
-                      {showJsonView ? '隐藏JSON格式' : '显示JSON格式'}
-                    </button>
-                    {showJsonView && <pre className="text-sm whitespace-pre-wrap break-all overflow-x-auto max-h-96 bg-gray-100 p-2 rounded">{JSON.stringify(aiSummaryJson, null, 2)}</pre>}
-                    <button onClick={copySummaryToClipboard} className="mt-3 py-1 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition duration-200">复制 JSON</button>
-                  </div>
-                </div>
-              </div>
+              <Summary aiSummaryJson={aiSummaryJson} splitByChapters={splitByChapters} />
             )}
           </div>
 
