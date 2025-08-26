@@ -20,6 +20,7 @@ export const featureLinks: NavLink[] = [
     href: '#topic', 
     label: '选题策划', 
     children: [
+      { href: '/features/topic-editor', label: '策划编辑' },
       { href: '/features/topic-selector', label: '选题情报' },
       { href: 'https://deep.codepoem.top', label: '选题报告', target: '_blank' },
     ] 
