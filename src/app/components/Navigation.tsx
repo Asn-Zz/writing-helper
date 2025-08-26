@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // 定义导航链接类型
 type NavLink = {
@@ -32,6 +32,7 @@ export const featureLinks: NavLink[] = [
       { href: '/features/media-editor', label: '新媒体编辑' },
       { href: '/features/comment-editor', label: '评论编辑' },
       { href: '/features/image-editor', label: '图像编辑' },
+      { href: '/features/ai-rewrite', label: 'AI文本优化' },
     ] 
   },
   { 
@@ -54,7 +55,6 @@ export const featureLinks: NavLink[] = [
 
       { href: '/polish', label: '文章润色' },
       { href: '/features/text-summarizer', label: '文本摘要' },
-      { href: '/features/ai-rewrite', label: 'AI文本优化' },
       { href: 'https://card.3min.top', label: '文字卡片', target: '_blank' },
     ] 
   },
@@ -65,6 +65,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSubMenuOpen, setMobileSubMenuOpen] = useState<string | null>(null);
+  const submenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   // 处理桌面端子菜单的显示/隐藏
   const toggleSubmenu = (href: string) => {
@@ -80,6 +81,29 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
   const toggleMobileSubmenu = (href: string) => {
     setMobileSubMenuOpen(mobileSubMenuOpen === href ? null : href);
   };
+  
+  // 点击外部区域关闭子菜单
+  useEffect(() => {
+    const handleClickOutside = (event: any) => {
+      // 检查是否点击在子菜单外部
+      if (openSubmenu && submenuRefs.current[openSubmenu]) {
+        const submenuElement = submenuRefs.current[openSubmenu];
+        const isSubmenuClick = event.target.classList.contains('submenu');
+        
+        if (submenuElement && !submenuElement.contains(event.target as Node) && !isSubmenuClick) {
+          setOpenSubmenu(null);
+        }
+      }
+    };
+
+    // 添加事件监听器
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // 清理事件监听器
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openSubmenu]);
   
   return (
     <nav className="bg-white border-b border-gray-200 relative">
@@ -100,7 +124,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
                     <div key={link.href} className="relative inline-block text-left">
                       <button
                         onClick={() => toggleSubmenu(link.href)}
-                        className={`inline-flex items-center px-1 pt-1 text-sm font-medium h-full ${isActive
+                        className={`submenu inline-flex items-center px-1 pt-1 text-sm font-medium h-full ${isActive
                           ? 'border-b-2 border-indigo-500 text-gray-900'
                           : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                         }`}
@@ -123,7 +147,10 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
                       
                       {/* 子菜单下拉框 */}
                       {openSubmenu === link.href && (
-                        <div className="absolute z-10 mt-1 w-48 rounded-md bg-white shadow-lg">
+                        <div 
+                          ref={(el: any) => submenuRefs.current[link.href] = el}
+                          className="absolute z-10 mt-1 w-48 rounded-md overflow-hidden bg-white shadow-lg"
+                        >
                           <div role="menu" aria-orientation="vertical">
                             {link.children.map((child) => {
                               const isChildActive = pathname === child.href;
@@ -132,7 +159,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
                                   key={child.href}
                                   href={child.href}
                                   target={child.target}
-                                  className={`block px-4 py-2 text-sm rounded-md ${isChildActive
+                                  className={`block px-4 py-2 text-sm ${isChildActive
                                     ? 'bg-gray-100 text-gray-900'
                                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                                   }`}
