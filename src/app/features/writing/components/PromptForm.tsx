@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { PromptStyle } from '../lib/types';
+import { PromptStyle } from '@/app/lib/types';
 
 interface PromptFormProps {
   initialStyle: PromptStyle;

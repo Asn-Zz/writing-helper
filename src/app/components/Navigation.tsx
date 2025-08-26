@@ -16,23 +16,41 @@ type NavLink = {
 // 集中管理所有功能页面的导航链接
 export const featureLinks: NavLink[] = [
   { href: '/', label: '写作助手' },
-  { href: '/features/topic-selector', label: '选题情报' },
-  { href: '/features/checker', label: '文章校对' },
-  { href: '/features/media-editor', label: '新媒体编辑' },
-  { href: '/features/comment-editor', label: '评论编辑' },
-  { href: '/features/image-editor', label: '图像编辑' },
-  { href: '/features/media-summarizer', label: '视音频摘要' },
-  { href: 'https://qa.codepoem.top', label: '知识库', target: '_blank' },
+  { 
+    href: '#topic', 
+    label: '选题策划', 
+    children: [
+      { href: '/features/topic-selector', label: '选题情报' },
+      { href: 'https://deep.codepoem.top', label: '选题报告', target: '_blank' },
+    ] 
+  },
+  { 
+    href: '#production', 
+    label: '内容生产', 
+    children: [
+      { href: '/features/writing', label: '文章写作' },
+      { href: '/features/media-editor', label: '新媒体编辑' },
+      { href: '/features/comment-editor', label: '评论编辑' },
+      { href: '/features/image-editor', label: '图像编辑' },
+    ] 
+  },
+  { 
+    href: '#audit', 
+    label: '内容审核', 
+    children: [
+      { href: '/features/checker', label: '文章校对' },
+      { href: '/features/media-summarizer', label: '视音频摘要' },
+    ] 
+  },
+  { href: 'https://qa.codepoem.top', label: '知识库问答', target: '_blank' },
+  { href: '/chat', label: 'AI聊天' },
   { 
     href: '#other', 
     label: '其他工具', 
     children: [
-      { href: '/chat', label: 'AI聊天', target: '_blank' },
-
       { href: '/features/markdown', label: '编辑器', target: '_blank' },
       { href: 'https://collagemaker.tools/zh/photo/', label: '拼图工具', target: '_blank' },
       { href: 'https://greenvideo.cc/', label: '视频下载', target: '_blank' },
-      { href: 'https://deep.codepoem.top', label: '调研报告', target: '_blank' },
 
       { href: '/polish', label: '文章润色' },
       { href: '/features/text-summarizer', label: '文本摘要' },
@@ -40,7 +58,6 @@ export const featureLinks: NavLink[] = [
       { href: 'https://card.3min.top', label: '文字卡片', target: '_blank' },
     ] 
   },
-  // { href: '/grok', label: 'API测试' },
 ];
 
 export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsClick: () => void, isAuthed: boolean }) {
@@ -65,7 +82,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
   };
   
   return (
-    <nav className="bg-white shadow">
+    <nav className="bg-white border-b border-gray-200 relative">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           <div className="flex h-full">
@@ -107,7 +124,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
                       {/* 子菜单下拉框 */}
                       {openSubmenu === link.href && (
                         <div className="absolute z-10 mt-1 w-48 rounded-md bg-white shadow-lg">
-                          <div className="py-1" role="menu" aria-orientation="vertical">
+                          <div role="menu" aria-orientation="vertical">
                             {link.children.map((child) => {
                               const isChildActive = pathname === child.href;
                               return (
@@ -115,7 +132,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
                                   key={child.href}
                                   href={child.href}
                                   target={child.target}
-                                  className={`block px-4 py-2 text-sm ${isChildActive
+                                  className={`block px-4 py-2 text-sm rounded-md ${isChildActive
                                     ? 'bg-gray-100 text-gray-900'
                                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                                   }`}
@@ -197,7 +214,7 @@ export default function Navigation({ onSettingsClick, isAuthed }: { onSettingsCl
       </div>
       
       {/* 移动端导航菜单 */}
-      <div className={`${mobileMenuOpen ? 'block' : 'hidden'}`}>
+      <div className={`${mobileMenuOpen ? 'absolute w-full z-50 bg-white shadow-lg block border-t border-gray-200' : 'hidden'}`}>
         <div className="space-y-1 px-2 pb-3 pt-2">
           {featureLinks.map((link) => {
             const isActive = pathname === link.href || 

@@ -84,6 +84,7 @@ export interface GenerateRequest {
   stream?: boolean;
   response_format?: unknown;
   handler?: (chunk: string) => void;
+  extra_body?: string;
 }
 
 export interface OcrRequest {

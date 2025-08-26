@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { WritingRequest } from '../lib/types';
-import { generateContent, exportToMarkdown } from '../lib/api';
+import { WritingRequest } from '@/app/lib/types';
+import { generateContent, exportToMarkdown } from '@/app/lib/api';
 import MarkdownEditor from './MarkdownEditor';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 

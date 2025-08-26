@@ -35,6 +35,9 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       if (request.response_format) {
         requestBody.response_format = request.response_format;
       }
+      if (request.extra_body) {
+        requestBody.extra_body = request.extra_body;
+      }
     }
     
     try {
