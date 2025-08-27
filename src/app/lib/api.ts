@@ -94,8 +94,8 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
                         }
                         try {
                             const parsed = JSON.parse(jsonStr);
-                            if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                                content += parsed.choices[0].delta.content;
+                            if (parsed.choices && parsed.choices[0].delta && (parsed.choices[0].delta.content || parsed.choices[0].delta.images)) {
+                                content += parsed.choices[0].delta.content
                                 handler?.(content);
                             }
                         } catch (e) {
@@ -114,12 +114,14 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         
         // 以与测试页面相同的方式尝试不同方法提取内容
         let content = '';
+        let images = [];
         
-        if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+        if (data.choices && data.choices.length > 0 && data.choices[0].message && (data.choices[0].message.content || data.choices[0].message.images)) {
           // 标准格式
           content = data.choices[0].message.content;
           content = content.replace(/```json\s*|```/g, '').trim();
-          console.log('提取内容:', content);
+          images = data.choices[0].message.images;
+          console.log('提取内容:', content, images);
         } else if (data.error) {
           // 有明确的错误信息
           throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
@@ -128,7 +130,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
           throw new Error(`无法从API响应中提取内容: ${JSON.stringify(data)}`);
         }
         
-        return { content };
+        return { content, images };
       }
     } catch (proxyError) {
       console.error('请求失败:', proxyError);

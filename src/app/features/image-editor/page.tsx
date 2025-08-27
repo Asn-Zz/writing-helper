@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
@@ -10,6 +10,14 @@ import { objectToQueryString, cn } from '@/app/lib/utils';
 import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
 
 export default function ImageEditor() {
     const { apiConfig } = useApiSettings();
@@ -29,6 +37,7 @@ export default function ImageEditor() {
     const modelOptions = ['flux', 'gptimage', 'kontext'];
     const [model, setModel] = useState(modelOptions[0]);
     const [uploadImage, setUploadImage] = useState<string>('');
+    const isEditing = useMemo(() => model === modelOptions[2] && uploadImage, [model, uploadImage]);
     const [imageHistory, setImageHistory] = useState<string[]>([]);
 
     const [background, setBackground] = useState({});
@@ -78,6 +87,11 @@ export default function ImageEditor() {
             }
             return updatedHistory;
         });
+
+        const formData = new FormData();
+        const key = imageUrl.split('/').pop() || '';
+        formData.append('key', key);
+        fetch('/api/cos-upload', { method: 'DELETE', body: formData });
     }, []);
 
     const handleTranslate = async () => {
@@ -161,15 +175,6 @@ export default function ImageEditor() {
     const handleImageToPrompt = async (imageUrl: string) => {
         if (isLoading) return;
 
-        const fileToBase64 = (file: File): Promise<string> => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = error => reject(error);
-            });
-        };
-
         setIsLoading(true);
         try {
             const response = await fetch(imageUrl);
@@ -241,21 +246,74 @@ export default function ImageEditor() {
         setContentImages([]);
     }
 
+    const generateEditorImage = async (imageUrl: string) => {
+        setIsImageLoading(true);
+
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            const file = new File([blob], "image.png", { type: blob.type });
+            const base64Url = await fileToBase64(file);
+
+            const generatedBase64Image = await generate({
+                ...apiConfig,
+                model: 'gemini-2.5-flash-image',
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: prompt
+                            },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: base64Url,
+                                },
+                            },
+                        ],
+                    },
+                ],
+                temperature: 0,
+                stream: false
+            });
+            if (generatedBase64Image.images?.length) {
+                const [image] = generatedBase64Image.images;
+
+                const response = await fetch(image.image_url.url);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                }
+                const blob = await response.blob();
+                const file = new File([blob], "image.png", { type: blob.type });
+                const blobUrl = URL.createObjectURL(file);
+                setContentImages((prev) => [...prev, blobUrl]);
+            }
+        } catch (error) {
+            console.error('Error generating prompt from image:', error);
+        } finally {
+            setIsImageLoading(false);
+        }
+    };
+
     const generateCoverImage = useCallback(async () => {
         const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
 
-        try {
+        try {                
             const imagePromises = Array.from({ length: numImages }).map(async () => {
                 const seed = Math.floor(Math.random() * 100000);
                 const payload = { 
                     nologo: true, 
                     enhance: true, 
                     token: process.env.NEXT_PUBLIC_POLLAI_KEY, 
-                    model,
-                    ...(uploadImage ? { image: uploadImage } : { seed, width, height })
+                    model, seed, width, height
                 };
                 const imageUrl = `https://image.pollinations.ai/prompt/${imagePrompt}?${objectToQueryString(payload)}`;
 
@@ -429,11 +487,11 @@ export default function ImageEditor() {
                                 上传
                             </label>
                             <button
-                                onClick={generateCoverImage}
+                                onClick={() => isEditing ? generateEditorImage(uploadImage) : generateCoverImage()}
                                 className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center flex-grow"
                                 disabled={isImageLoading || prompt.trim() === ''}
                             >
-                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : uploadImage ? '编辑图像' : '生成图像'}
+                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : isEditing ? '编辑图像' : '生成图像'}
                             </button>
                         </div>
                         {contentImages.length > 0 && (

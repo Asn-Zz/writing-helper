@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import ReactMarkdown from 'react-markdown';
 import { FaUser } from 'react-icons/fa';
+import { objectToQueryString } from '@/app/lib/utils'
 import { Book, Result } from './types';
 
 export default function TopicEditor() {
@@ -13,6 +14,7 @@ export default function TopicEditor() {
   const [bookSummary, setBookSummary] = useState('');
   const [activeBook, setActiveBook] = useState<Book | null>(null);
 
+  const [sid, setSid] = useState('');
   const [splitKeyword, setSplitKeyword] = useState('');
   const search = async () => {
     if (!keyword.trim()) return;
@@ -26,6 +28,7 @@ export default function TopicEditor() {
       const data = await response.json();
       const results = data.results || [];
 
+      setSid(data.sid)
       setResult(results);
     } catch (error) {
       console.error('Search failed:', error);
@@ -65,7 +68,7 @@ export default function TopicEditor() {
       const prompt = `请介绍作者${author.userInfo.name}的写作风格、代表作品和主要成就。`;
 
       setAuthorSummary('加载中...');
-      fetch(`https://text.pollinations.ai/${prompt}?model=openai`)
+      fetch(`https://text.pollinations.ai/${prompt}?model=gemini-2.5-flash-lite`)
         .then(response => response.text())
         .then(data => {
           setAuthorSummary(data);
@@ -76,12 +79,35 @@ export default function TopicEditor() {
     }
   }, [authorData]);
 
+  const watchMoreByBook = (bookData: Result) => {
+    if (sid) {
+      try {
+        const payload = { keyword, sid, scope: bookData.scope, maxIdx: bookData.currentCount, count: 20 }
+        fetch(`/api/wxread/search?${objectToQueryString(payload)}`)
+        .then((res) => res.json())
+        .then((res) => {
+          const results = res.results || [];
+
+          if (results[0].books.length) {
+            setResult((prev) => prev.map(item => 
+              item.scope === bookData.scope 
+              ? {...bookData, books: [...bookData.books, ...results[0].books]} 
+              : item
+            ));
+          }
+        })        
+      } catch (error) {
+        console.error('Search failed:', error);
+      }
+    }
+  }
+
   const selectBook = (book: Book) => {
     const prompt = `请介绍电子书《${book.bookInfo.title}》的主要内容、核心观点和读者评价，作者是${book.bookInfo.author}。`;
 
     setActiveBook(book);
     setBookSummary('加载中...');
-    fetch(`https://text.pollinations.ai/${prompt}?model=openai`)
+    fetch(`https://text.pollinations.ai/${prompt}?model=gemini-2.5-flash-lite`)
       .then(response => response.text())
       .then(data => {
         setBookSummary(data);
@@ -141,7 +167,7 @@ export default function TopicEditor() {
                           <img 
                             src={book.bookInfo.cover} 
                             alt={book.bookInfo.title} 
-                            className="object-contain rounded"
+                            className="object-contain rounded border border-gray-200"
                           />
                         )}
                         <div className="flex-1 flex flex-col justify-between h-full min-w-0">
@@ -159,6 +185,10 @@ export default function TopicEditor() {
                       </div>
                     ))}
                   </div>
+
+                  {bookData?.books.length < bookData?.scopeCount && <div className="flex justify-center mt-4 cursor-pointer text-blue-600 text-sm" onClick={() => watchMoreByBook(bookData)}>
+                    查看更多 （{bookData?.scopeCount - bookData?.books.length} 本）
+                  </div>}
                 </div>
               ) : (
                 <p className="text-gray-500">暂无电子书数据</p>
@@ -174,7 +204,7 @@ export default function TopicEditor() {
               </h3>
             </div>
             <div className="p-4">
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 mb-4 cursor-pointer hover:text-blue-600" onClick={() => {setKeyword(activeBook.bookInfo.author)}}>
                 作者：{activeBook.bookInfo.author}
               </p>
 
@@ -233,7 +263,7 @@ export default function TopicEditor() {
                           <img 
                             src={book.bookInfo.cover} 
                             alt={book.bookInfo.title} 
-                            className="object-contain rounded"
+                            className="object-contain border border-gray-200 rounded"
                           />
                         )}
                         <div className="flex-1 flex flex-col justify-between h-full min-w-0">
@@ -277,7 +307,7 @@ export default function TopicEditor() {
                           <img 
                             src={book.bookInfo.cover} 
                             alt={book.bookInfo.title} 
-                            className="w-16 h-24 object-contain rounded"
+                            className="w-16 h-24 object-contain border border-gray-200 rounded"
                           />
                         )}
                         <div className="flex-1 flex flex-col justify-between h-full min-w-0">

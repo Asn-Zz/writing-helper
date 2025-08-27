@@ -30,6 +30,8 @@ export interface BookText extends Book {
 export interface Result {
     title: string;
     scopeCount: number;
+    scope: number;
+    currentCount: number;
     books: Book[];
     authors?: Author[];
     bookTexts?: BookText[];

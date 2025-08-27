@@ -71,6 +71,13 @@ export interface PolishResponse {
 
 export interface ApiResponse {
   content: string;
+  images?: {
+    type: string;
+    image_url: {
+      url: string;
+    };
+    index: number;
+  }[];
   error?: string;
 }
 
