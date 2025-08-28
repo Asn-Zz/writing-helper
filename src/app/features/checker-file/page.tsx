@@ -54,7 +54,6 @@ export default function CheckerFile() {
     setFileInfo(currentFileInfo);
     setBlobUrl(currentBlobUrl);
     setIsPdf(file.type === 'application/pdf');
-    // 重置评分
     setScores(null);
   };
   const handleFileUpload = (event: any) => {
@@ -97,7 +96,8 @@ export default function CheckerFile() {
   };
 
   const [summary, setSummary] = useState('');
-  const handleGenerate = async () => {    
+  const handleGenerate = async () => {        
+    if (isLoading) return;
     setIsLoading(true);
     setIsScoring(true);
     setScores(null);
@@ -171,9 +171,8 @@ export default function CheckerFile() {
   };
 
   useEffect(() => {
-    if (!blobUrl) return;
-    handleGenerate();
-  }, [blobUrl, wordText]);
+    if (isPdf && blobUrl || (!isPdf && wordText)) handleGenerate();
+  }, [blobUrl, wordText, isPdf]);
 
   return (
     <FeatureLayout 
