@@ -41,6 +41,7 @@ export const featureLinks: NavLink[] = [
     label: '内容审核', 
     children: [
       { href: '/features/checker', label: '文章校对' },
+      { href: '/features/checker-file', label: '文档预审' },
       { href: '/features/media-summarizer', label: '视音频摘要' },
     ] 
   },
