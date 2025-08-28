@@ -67,9 +67,10 @@ export default function TopicEditor() {
     if (authorData?.authors?.length) {
       const [author] = authorData.authors;
       const prompt = `你是一名专业的作者介绍专家，请介绍${author.userInfo.name} ${author.desc || author.userInfo.vdesc}`;
+      const payload = objectToQueryString({ model, token: process.env.NEXT_PUBLIC_POLLAI_KEY });
 
       setAuthorSummary('正在加载作者介绍...');
-      fetch(`https://text.pollinations.ai/${prompt}?model=${model}`)
+      fetch(`https://text.pollinations.ai/${prompt}?${payload}`)
         .then(response => response.text())
         .then(data => {
           setAuthorSummary(data);
@@ -109,10 +110,11 @@ export default function TopicEditor() {
 
   const selectBook = (book: Book) => {
     const prompt = `你是一名专业的书籍介绍专家，请介绍书籍 ${book.bookInfo.title} 作者 ${book.bookInfo.author}`;
+    const payload = objectToQueryString({ model, token: process.env.NEXT_PUBLIC_POLLAI_KEY });
 
     setActiveBook(book);
     setBookSummary('正在加载书籍介绍...');
-    fetch(`https://text.pollinations.ai/${prompt}?model=${model}`)
+    fetch(`https://text.pollinations.ai/${prompt}?${payload}`)
       .then(response => response.text())
       .then(data => {
         setBookSummary(data);
