@@ -34,10 +34,10 @@ export default function ImageEditor() {
     const [style, setStyle] = useState(styleOptions[0]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    const modelOptions = ['flux', 'gptimage', 'kontext'];
+    const modelOptions = ['flux', 'turbo', 'nano-banana'];
     const [model, setModel] = useState(modelOptions[0]);
-    const [uploadImage, setUploadImage] = useState<string>('');
-    const isEditing = useMemo(() => model === modelOptions[2] && uploadImage, [model, uploadImage]);
+    const [uploadImages, setUploadImages] = useState<string[]>([]);
+    const isEditing = useMemo(() => model === modelOptions[2] && uploadImages.length > 0, [model, uploadImages]);
     const [imageHistory, setImageHistory] = useState<string[]>([]);
 
     const [background, setBackground] = useState({});
@@ -136,15 +136,23 @@ export default function ImageEditor() {
         }
     };
 
-    const handleEditImage = async (imageUrl: string) => {
-        if (uploadImage === imageUrl) {
-            setModel(modelOptions[0]);
-            setUploadImage('');
+    const handleEditImage = useCallback(async (imageUrl: string) => {
+        const isAlreadyEditing = uploadImages.includes(imageUrl);
+        
+        if (isAlreadyEditing) {
+            setUploadImages(prev => prev.filter(url => url !== imageUrl));
+            if (uploadImages.length <= 1) {
+                setModel(modelOptions[0]);
+            }
             return;
         }
 
+        setUploadImages(prev => [...prev, imageUrl]);
         setModel(modelOptions[2]);
-        if (imageUrl.startsWith('http')) { return setUploadImage(imageUrl); }
+        
+        if (imageUrl.startsWith('http')) { 
+            return;
+        }
 
         try {
             let response = await fetch(imageUrl);
@@ -165,12 +173,15 @@ export default function ImageEditor() {
                 throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`);
             }
             const data = await response.json();
-            setUploadImage(data.message);
-            addImagesToHistory([data.message]);
+
+            if (data.message) {
+                setUploadImages(prev => prev.map(url => url === imageUrl ? data.message : url));
+                addImagesToHistory([data.message]);
+            }
         } catch (error) {
             console.error(error);
         }
-    }
+    }, [uploadImages]);
 
     const handleImageToPrompt = async (imageUrl: string) => {
         if (isLoading) return;
@@ -218,8 +229,10 @@ export default function ImageEditor() {
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+        if (isImageLoading) return;
 
+        const file = e.target.files?.[0];
+        setIsImageLoading(true);
         if (file) {
             const formData = new FormData();
             formData.append('file', file);
@@ -230,8 +243,11 @@ export default function ImageEditor() {
             })
             .then(res => res.json())
             .then((res) => {
-                setContentImages([res.message]);
+                setContentImages((prev) => [...prev, res.message]);
                 addImagesToHistory([res.message]);
+            })
+            .finally(() => {
+                setIsImageLoading(false);
             });
         }
     };
@@ -242,21 +258,28 @@ export default function ImageEditor() {
 
     const resetImage = () => {
         setPrompt('');
-        setUploadImage('');
+        setUploadImages([]);
         setContentImages([]);
     }
 
-    const generateEditorImage = async (imageUrl: string) => {
+    const generateEditorImage = async () => {
         setIsImageLoading(true);
 
         try {
-            const response = await fetch(imageUrl);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-            }
-            const blob = await response.blob();
-            const file = new File([blob], "image.png", { type: blob.type });
-            const base64Url = await fileToBase64(file);
+            const imagePromises = uploadImages.map(async (url) => {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                }
+                const blob = await response.blob();
+                const file = new File([blob], "image.png", { type: blob.type });
+                const base64Url = await fileToBase64(file);
+
+                return base64Url;
+            });
+
+            const results = await Promise.all(imagePromises);
+            const validResults = results.filter(result => result !== null) as string[];
 
             const generatedBase64Image = await generate({
                 ...apiConfig,
@@ -269,21 +292,21 @@ export default function ImageEditor() {
                                 type: "text",
                                 text: prompt
                             },
-                            {
+                            ...validResults.map(base64Url => ({
                                 type: "image_url",
                                 image_url: {
                                     url: base64Url,
                                 },
-                            },
+                            })),
                         ],
                     },
                 ],
                 temperature: 0,
                 stream: false
             });
+            
             if (generatedBase64Image.images?.length) {
                 const [image] = generatedBase64Image.images;
-
                 const response = await fetch(image.image_url.url);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
@@ -291,7 +314,8 @@ export default function ImageEditor() {
                 const blob = await response.blob();
                 const file = new File([blob], "image.png", { type: blob.type });
                 const blobUrl = URL.createObjectURL(file);
-                setContentImages((prev) => [...prev, blobUrl]);
+
+                setContentImages(prev => [...prev, blobUrl]);
             }
         } catch (error) {
             console.error('Error generating prompt from image:', error);
@@ -300,7 +324,9 @@ export default function ImageEditor() {
         }
     };
 
-    const generateCoverImage = useCallback(async () => {
+    const generateCoverImage = useCallback(async () => {        
+        if (model === modelOptions[2]) return generateEditorImage();
+        
         const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
@@ -335,7 +361,7 @@ export default function ImageEditor() {
         } finally {
             setIsImageLoading(false);
         }
-    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions, uploadImage]);
+    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions, model]);
 
     const toggleRatioLock = useCallback((value: string) => {
         setAspectRatio(value);
@@ -487,11 +513,11 @@ export default function ImageEditor() {
                                 上传
                             </label>
                             <button
-                                onClick={() => isEditing ? generateEditorImage(uploadImage) : generateCoverImage()}
+                                onClick={() => isEditing ? generateEditorImage() : generateCoverImage()}
                                 className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center flex-grow"
                                 disabled={isImageLoading || prompt.trim() === ''}
                             >
-                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : isEditing ? '编辑图像' : '生成图像'}
+                                {isImageLoading ? <><FaSpinner className="animate-spin mr-2" />生成中...</> : isEditing ? `编辑图像 (${uploadImages.length})` : '生成图像'}
                             </button>
                         </div>
                         {contentImages.length > 0 && (
@@ -535,12 +561,12 @@ export default function ImageEditor() {
                                         );
                                     }}>
                                         {contentImages.map((image, index) => (
-                                            <div className='view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500' key={index}>
+                                            <div className={cn('view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500', uploadImages.includes(image) ? 'editing' : '')} key={index}>
                                                 <PhotoView src={image}>
                                                     <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
                                                 </PhotoView>
 
-                                                <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', uploadImage === image ? 'block' : 'hidden')}>
+                                                <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', uploadImages.includes(image) ? 'block' : 'hidden')}>
                                                     <button
                                                         onClick={() => handleDownload(image)}
                                                         className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
@@ -562,7 +588,7 @@ export default function ImageEditor() {
                                                         className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
                                                     >
                                                         <FaEdit size={14} />
-                                                        <span className='text-[10px]'>{image === uploadImage ? '取消' : '编辑'}</span>
+                                                        <span className='text-[10px]'>{uploadImages.includes(image) ? '取消' : '编辑'}</span>
                                                     </button>
 
                                                     <button
@@ -584,7 +610,6 @@ export default function ImageEditor() {
                                     style={background}
                                     title="点击生成图像"
                                 >
-                                    {/* <span>输入描述后生成图像</span> */}
                                 </div>
                             )}
                         </div>
@@ -621,6 +646,10 @@ export default function ImageEditor() {
             <style jsx global>{`
             .view-list:hover > div {
                 display: flex;
+            }
+            .view-list.editing {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
             }
             `}</style>
         </FeatureLayout>
