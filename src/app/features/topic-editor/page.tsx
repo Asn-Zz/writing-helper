@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import ReactMarkdown from 'react-markdown';
-import { FaUser } from 'react-icons/fa';
+import { FaUser } from 'react-icons/fa6';
 import { objectToQueryString } from '@/app/lib/utils'
 import { Book, Result } from './types';
 
@@ -14,6 +14,7 @@ export default function TopicEditor() {
   const [bookSummary, setBookSummary] = useState('');
   const [activeBook, setActiveBook] = useState<Book | null>(null);
 
+  const model = 'deepseek-r1-0528';
   const [sid, setSid] = useState('');
   const [splitKeyword, setSplitKeyword] = useState('');
   const search = async () => {
@@ -65,10 +66,10 @@ export default function TopicEditor() {
   useEffect(() => {
     if (authorData?.authors?.length) {
       const [author] = authorData.authors;
-      const prompt = `请介绍作者${author.userInfo.name}的写作风格、代表作品和主要成就。`;
+      const prompt = `你是一名专业的作者介绍专家，请介绍${author.userInfo.name} ${author.desc || author.userInfo.vdesc}`;
 
-      setAuthorSummary('加载中...');
-      fetch(`https://text.pollinations.ai/${prompt}?model=gemini-2.5-flash-lite`)
+      setAuthorSummary('正在加载作者介绍...');
+      fetch(`https://text.pollinations.ai/${prompt}?model=${model}`)
         .then(response => response.text())
         .then(data => {
           setAuthorSummary(data);
@@ -79,9 +80,11 @@ export default function TopicEditor() {
     }
   }, [authorData]);
 
+  let isLoading = false;
   const watchMoreByBook = (bookData: Result) => {
-    if (sid) {
+    if (sid && !isLoading) {
       try {
+        isLoading = true;
         const payload = { keyword, sid, scope: bookData.scope, maxIdx: bookData.currentCount, count: 20 }
         fetch(`/api/wxread/search?${objectToQueryString(payload)}`)
         .then((res) => res.json())
@@ -98,16 +101,18 @@ export default function TopicEditor() {
         })        
       } catch (error) {
         console.error('Search failed:', error);
+      } finally {
+        isLoading = false;
       }
     }
   }
 
   const selectBook = (book: Book) => {
-    const prompt = `请介绍电子书《${book.bookInfo.title}》的主要内容、核心观点和读者评价，作者是${book.bookInfo.author}。`;
+    const prompt = `你是一名专业的书籍介绍专家，请介绍书籍 ${book.bookInfo.title} 作者 ${book.bookInfo.author}`;
 
     setActiveBook(book);
-    setBookSummary('加载中...');
-    fetch(`https://text.pollinations.ai/${prompt}?model=gemini-2.5-flash-lite`)
+    setBookSummary('正在加载书籍介绍...');
+    fetch(`https://text.pollinations.ai/${prompt}?model=${model}`)
       .then(response => response.text())
       .then(data => {
         setBookSummary(data);
@@ -160,9 +165,15 @@ export default function TopicEditor() {
                   <p className="text-sm text-gray-500">
                     找到 {bookData?.scopeCount || 0} 本相关书籍
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 space-y-3">
                     {bookData?.books.map((book, index) => (
-                      <div key={index} className="flex items-center gap-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => selectBook(book)}>
+                      <a key={index} 
+                        href={`https://cn.bing.com/search?q=weread:${encodeURIComponent(book.bookInfo.title)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-lg mb-0"
+                        onClick={() => selectBook(book)}
+                      >
                         {book.bookInfo.cover && (
                           <img 
                             src={book.bookInfo.cover} 
@@ -173,7 +184,7 @@ export default function TopicEditor() {
                         <div className="flex-1 flex flex-col justify-between h-full min-w-0">
                           <h4 className="font-base text-gray-900 truncate-2">{book.bookInfo.title}</h4>
                           <p className="text-sm text-gray-500 truncate">{book.bookInfo.author}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 text-xs">
                             <span className="text-sm font-medium text-yellow-600">
                               {((book.bookInfo.newRating / 10)).toFixed(1)}%
                             </span>
@@ -182,11 +193,12 @@ export default function TopicEditor() {
                             </span>
                           </div>
                         </div>
-                      </div>
+                      </a>
                     ))}
                   </div>
 
-                  {bookData?.books.length < bookData?.scopeCount && <div className="flex justify-center mt-4 cursor-pointer text-blue-600 text-sm" onClick={() => watchMoreByBook(bookData)}>
+                  {bookData?.books.length < bookData?.scopeCount && 
+                  <div className="flex justify-center mt-4 pt-4 border-t border-gray-200 cursor-pointer text-blue-600 text-sm" onClick={() => watchMoreByBook(bookData)}>
                     查看更多 （{bookData?.scopeCount - bookData?.books.length} 本）
                   </div>}
                 </div>
@@ -208,7 +220,7 @@ export default function TopicEditor() {
                 作者：{activeBook.bookInfo.author}
               </p>
 
-              <div className="border border-gray-200 rounded-lg p-3 whitespace-pre-wrap text-sm leading-4">
+              <div className="border border-gray-200 rounded-lg p-3 whitespace-pre-wrap text-sm leading-5">
                 <ReactMarkdown>{bookSummary}</ReactMarkdown>
               </div>
             </div>
@@ -237,7 +249,7 @@ export default function TopicEditor() {
                     </a>
                   ))}
 
-                  <div className="border border-gray-200 rounded-lg p-3 whitespace-pre-wrap text-sm leading-4">
+                  <div className="border border-gray-200 rounded-lg p-3 whitespace-pre-wrap text-sm leading-6">
                     <ReactMarkdown>{authorSummary}</ReactMarkdown>
                   </div>
                 </div>
@@ -256,9 +268,14 @@ export default function TopicEditor() {
             <div className="p-4">
               {keywordData ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 space-y-3">
                     {keywordData?.bookTexts?.map((book, index) => (
-                      <div key={index} className="flex items-start gap-3 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <a key={index} 
+                        href={`https://cn.bing.com/search?q=weread:${encodeURIComponent(book.bookInfo.title)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-3 rounded-lg mb-0"
+                      >
                         {book.bookInfo.cover && (
                           <img 
                             src={book.bookInfo.cover} 
@@ -279,7 +296,7 @@ export default function TopicEditor() {
                             dangerouslySetInnerHTML={{ __html: book.bookContentInfo.abstract.replace(splitKeyword, `<span class="text-blue-600">${splitKeyword}</span>`) }} 
                           />
                         </div>
-                      </div>
+                      </a>
                     ))}
                   </div>
                 </div>
