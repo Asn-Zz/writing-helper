@@ -103,13 +103,14 @@ export default function CheckerFile() {
     }
   };
 
-  const handleExportImage = async () => {
+  const handleExportWord = async () => {
+    const prefix = '.docx';
     const summaryElement = document.getElementById('summary');
 
     if (summaryElement) {
       try {
         const data = await asBlob(summaryElement.innerHTML);
-        const fileName = `${fileInfo}-预审报告(${new Date().toLocaleString()}).docx`;
+        const fileName = `${fileInfo.replace(prefix, '')}-预审报告(${new Date().toLocaleString()})${prefix}`;
 
         window.saveAs(data, fileName);
       } catch (error) {
@@ -263,7 +264,7 @@ export default function CheckerFile() {
 
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <div>
-                  {isPdf ? <PdfViewer pdfPreviewUrl={blobUrl} /> : <WordViewer wordPreviewUrl={blobUrl} setWordText={setWordText} />}
+                    {isPdf ? <PdfViewer pdfPreviewUrl={blobUrl} /> : <WordViewer wordPreviewUrl={blobUrl} setWordText={setWordText} />}
                     
                     <div className='flex items-center justify-between py-2'>
                       <div className='flex gap-2 text-sm text-gray-500'>
@@ -272,7 +273,7 @@ export default function CheckerFile() {
 
                       <div className='flex gap-2 hidden'>
                         <button 
-                          onClick={handleExportImage}
+                          onClick={handleExportWord}
                           className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
                           disabled={!summary}
                         >
@@ -283,7 +284,7 @@ export default function CheckerFile() {
                   </div>
 
                   <div>
-                    <div className='relative border border-gray-200 rounded-lg bg-white md:col-span-2 h-[600px]'>
+                    <div className='relative border border-gray-200 rounded-lg bg-white md:col-span-2 h-[600px] overflow-hidden'>
                       {!summary && <div className="w-full h-full flex items-center justify-center gap-2 z-0">
                         <FaSpinner className="animate-spin text-blue-600 text-4xl" />报告正在生成中，请稍候...
                       </div>}
@@ -317,7 +318,7 @@ export default function CheckerFile() {
                           <FaDownload /> 纯文本
                         </button>
                         <button 
-                          onClick={handleExportImage}
+                          onClick={handleExportWord}
                           className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
                           disabled={!summary}
                         >
