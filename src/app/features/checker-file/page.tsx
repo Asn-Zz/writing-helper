@@ -1,8 +1,10 @@
 "use client";
 
+import Script from 'next/script';
 import dynamic from 'next/dynamic';
+import { asBlob } from 'html-docx-js-typescript';
 import React, { useState, useEffect } from 'react';
-import { FaCloudUploadAlt, FaSpinner } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaSpinner, FaCopy, FaDownload } from 'react-icons/fa';
 import remarkGfm from 'remark-gfm';
 import ReactMarkdown from 'react-markdown';
 import FeatureLayout from '@/app/components/FeatureLayout';
@@ -46,15 +48,17 @@ export default function CheckerFile() {
   // 评分状态
   const [scores, setScores] = useState<Scores | null>(null);
   const [isScoring, setIsScoring] = useState(false);
+  const [summary, setSummary] = useState('');
 
   const processFile = (file : File) => {
-    const currentFileInfo = file.name;
+    const currentFileInfo = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
     const currentBlobUrl = URL.createObjectURL(file);
     
     setFileInfo(currentFileInfo);
     setBlobUrl(currentBlobUrl);
     setIsPdf(file.type === 'application/pdf');
     setScores(null);
+    setSummary('');
   };
   const handleFileUpload = (event: any) => {
     const file = event.target.files[0];
@@ -77,9 +81,45 @@ export default function CheckerFile() {
     });
   };
 
-  // 解析评分的函数
+  const handleCopy = () => {
+    navigator.clipboard.writeText(summary)
+      .then(() => {
+        alert('内容已复制到剪贴板');
+      })
+      .catch(err => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+      });
+  };
+
+  const handleExportText = () => {
+    const summaryElement = document.getElementById('summary');
+
+    if (summaryElement) {
+      const link = document.createElement('a');
+      link.download = `${fileInfo}-预审报告(${new Date().toLocaleString()}).txt`;
+      link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(summaryElement.innerText)}`;
+      link.click();
+    }
+  };
+
+  const handleExportImage = async () => {
+    const summaryElement = document.getElementById('summary');
+
+    if (summaryElement) {
+      try {
+        const data = await asBlob(summaryElement.innerHTML);
+        const fileName = `${fileInfo}-预审报告(${new Date().toLocaleString()}).docx`;
+
+        window.saveAs(data, fileName);
+      } catch (error) {
+        console.error('导出图片失败:', error);
+        alert('导出图片失败');
+      }
+    }
+  };
+
   const parseScoresFromText = (text: string): Scores | null => {
-    // 首先尝试解析Markdown表格格式
     const tablePattern = /\|.*内容质量.*\|.*结构组织.*\|.*语言表达.*\|.*意识形态.*\|.*市场定位.*\|[\s\S]*?\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|/;
     const tableMatch = text.match(tablePattern);
     
@@ -95,7 +135,6 @@ export default function CheckerFile() {
     return null;
   };
 
-  const [summary, setSummary] = useState('');
   const handleGenerate = async () => {        
     if (isLoading) return;
     setIsLoading(true);
@@ -119,6 +158,7 @@ export default function CheckerFile() {
       // 生成预审报告
       const data = await generate({
         ...apiConfig,
+        model: 'gemini-2.5-pro',
         messages: [
           {
             role: 'user',
@@ -192,7 +232,7 @@ export default function CheckerFile() {
                 >
                   <FaCloudUploadAlt className="text-5xl text-gray-400 mx-auto" />
                   <p className="my-2">支持PDF、Word等格式</p>
-                  {fileInfo && <p className="text-sm text-gray-500">{fileInfo}</p>}
+                  <p className="text-sm text-gray-500">{fileInfo ? '已选择: ' + fileInfo : '未选择文件'}</p>
                   <input type="file" id="input" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={handleFileUpload} />
                 </div>
               </label>
@@ -221,17 +261,68 @@ export default function CheckerFile() {
                   </div>
                 </div>}
 
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[600px]'>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <div>
                   {isPdf ? <PdfViewer pdfPreviewUrl={blobUrl} /> : <WordViewer wordPreviewUrl={blobUrl} setWordText={setWordText} />}
+                    
+                    <div className='flex items-center justify-between py-2'>
+                      <div className='flex gap-2 text-sm text-gray-500'>
+                        <span>字数: {wordText?.length}</span>
+                      </div>
+
+                      <div className='flex gap-2 hidden'>
+                        <button 
+                          onClick={handleExportImage}
+                          className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
+                          disabled={!summary}
+                        >
+                          <FaDownload /> 导出当前页
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
                   <div>
-                    <div className='relative border border-gray-200 rounded-lg overflow-y-auto bg-white md:col-span-2 h-full max-h-[600px]'>
+                    <div className='relative border border-gray-200 rounded-lg bg-white md:col-span-2 h-[600px]'>
                       {!summary && <div className="w-full h-full flex items-center justify-center gap-2 z-0">
                         <FaSpinner className="animate-spin text-blue-600 text-4xl" />报告正在生成中，请稍候...
                       </div>}
 
-                      <div id="summary" className="p-4 text-sm leading-loose max-h-[600px] overflow-y-scroll z-10">
+                      <div 
+                        id="summary" 
+                        className="p-4 text-sm leading-loose h-full max-h-[600px] overflow-y-auto" 
+                      >
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>
+                      </div>
+                    </div>
+
+                    <div className='flex items-center justify-between py-2'>
+                      <div className='flex gap-2 text-sm text-gray-500'>
+                        <span>字数: {summary?.length}</span>
+                      </div>
+
+                      <div className='flex gap-2'>
+                        <button 
+                          onClick={handleCopy}
+                          className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
+                          disabled={!summary}
+                        >
+                          <FaCopy /> 复制
+                        </button>
+                        <button 
+                          onClick={handleExportText}
+                          className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
+                          disabled={!summary}
+                        >
+                          <FaDownload /> 纯文本
+                        </button>
+                        <button 
+                          onClick={handleExportImage}
+                          className='flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm transition-colors'
+                          disabled={!summary}
+                        >
+                          <FaDownload /> 导出文档
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -241,6 +332,8 @@ export default function CheckerFile() {
           }
         </div>
       </div>
+      
+      <Script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js" />
     </FeatureLayout>
   );
 }
