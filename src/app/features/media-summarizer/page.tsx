@@ -726,7 +726,7 @@ export default function AudioEditorPage() {
           </div>
         )}
 
-        <div className="container mx-auto">
+        <>
           {/* 1. Upload */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
             <h2 className="text-lg font-semibold mb-3 flex items-center justify-between">
@@ -901,7 +901,7 @@ export default function AudioEditorPage() {
                 autoSplitAudio={autoSplitAudio}
               />
             )}
-        </div>
+        </>
       </FeatureLayout>
 
       {/* --- External Scripts Loading --- */}

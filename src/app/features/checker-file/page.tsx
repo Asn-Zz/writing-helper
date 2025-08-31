@@ -110,7 +110,7 @@ export default function CheckerFile() {
     if (summaryElement) {
       try {
         const data = await asBlob(summaryElement.innerHTML);
-        const fileName = `${fileInfo.replace(prefix, '')}-预审报告(${new Date().toLocaleString()})${prefix}`;
+        const fileName = `${fileInfo.split(prefix)[0]}-预审报告(${new Date().toLocaleString()})${prefix}`;
 
         window.saveAs(data, fileName);
       } catch (error) {

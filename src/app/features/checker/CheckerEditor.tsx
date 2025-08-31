@@ -45,7 +45,7 @@ export default function CheckerEditor() {
     };
 
     return (
-        <div className="container mx-auto">
+        <>
             <InputSection
                 apiConfig={apiConfig}
                 inputText={inputText}
@@ -104,6 +104,6 @@ export default function CheckerEditor() {
             <AboutSection />
 
             <HistoryModal onRestore={handleRestore} />
-        </div>
+        </>
     );
 }

@@ -93,7 +93,7 @@ export default function HistoryModal({ onRestore }: HistoryModalProps) {
                                                         <span>问题：{entry.issues.filter(i => !i.ignored).length}</span>
                                                     </p>
 
-                                                    <FaTrash className="text-red-600 cursor-pointer hover:text-red-800 transition-colors duration-200" onClick={() => deleteHistory(entry)} />
+                                                    <FaTrash className="text-red-600 cursor-pointer hover:text-red-800 transition-colors duration-200" onClick={(e) => {e.stopPropagation(); deleteHistory(entry)}} />
                                                 </div>
                                                 <p className="text-gray-700 line-clamp-2">{entry.text}</p>
                                             </div>

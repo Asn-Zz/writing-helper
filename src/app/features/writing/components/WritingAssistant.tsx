@@ -95,7 +95,7 @@ export default function WritingAssistant() {
 
   return (
     <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="container mx-auto">
+      <div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
