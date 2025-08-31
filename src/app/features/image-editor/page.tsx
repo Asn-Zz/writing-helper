@@ -149,38 +149,6 @@ export default function ImageEditor() {
 
         setUploadImages(prev => [...prev, imageUrl]);
         setModel(modelOptions[2]);
-        
-        if (imageUrl.startsWith('http')) { 
-            return;
-        }
-
-        try {
-            let response = await fetch(imageUrl);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-            }
-            const blob = await response.blob();
-            const fileName = `${prompt.slice(0, 10) || 'image'}-${Date.now()}.png`;
-            const file = new File([blob], fileName, { type: blob.type });               
-
-            const formData = new FormData();
-            formData.append('file', file);
-            response = await fetch('/api/cos-upload', {
-                method: 'POST',
-                body: formData,
-            });
-            if (!response.ok) {
-                throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`);
-            }
-            const data = await response.json();
-
-            if (data.message) {
-                setUploadImages(prev => prev.map(url => url === imageUrl ? data.message : url));
-                addImagesToHistory([data.message]);
-            }
-        } catch (error) {
-            console.error(error);
-        }
     }, [uploadImages]);
 
     const handleImageToPrompt = async (imageUrl: string) => {
@@ -232,24 +200,9 @@ export default function ImageEditor() {
         if (isImageLoading) return;
 
         const file = e.target.files?.[0];
-        setIsImageLoading(true);
-        if (file) {
-            const formData = new FormData();
-            formData.append('file', file);
+        const blobUrl = URL.createObjectURL(file as Blob);
 
-            fetch('/api/cos-upload', {
-                method: 'POST',
-                body: formData,
-            })
-            .then(res => res.json())
-            .then((res) => {
-                setContentImages((prev) => [...prev, res.message]);
-                addImagesToHistory([res.message]);
-            })
-            .finally(() => {
-                setIsImageLoading(false);
-            });
-        }
+        setContentImages((prev) => [...prev, blobUrl]);
     };
 
     const handleDeleteImage = (image: string) => {
@@ -375,6 +328,35 @@ export default function ImageEditor() {
         }
     }, [width, height]);
 
+    const handleSave = useCallback(async (imageUrl: string) => {
+        try {
+            let response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            const fileName = `${prompt.slice(0, 10) || 'image'}-${Date.now()}.png`;
+            const file = new File([blob], fileName, { type: blob.type });               
+
+            const formData = new FormData();
+            formData.append('file', file);
+            response = await fetch('/api/cos-upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            if (data.message) {
+                addImagesToHistory([data.message]);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }, []);
+
     let loading = false;
     const handleDownload = useCallback((url: string) => {
         if (loading) return;
@@ -387,6 +369,8 @@ export default function ImageEditor() {
         link.click();
         document.body.removeChild(link);
         loading = false;
+
+        handleSave(url);
     }, [prompt]);
 
     return (
