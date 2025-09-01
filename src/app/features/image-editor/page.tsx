@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash, FaGripLines } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { objectToQueryString, cn } from '@/app/lib/utils';
+import PromptList from './components/PromptList';
 import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
@@ -30,6 +31,9 @@ export default function ImageEditor() {
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
     const [contentImages, setContentImages] = useState<string[]>(Array.from({ length: 0 }, () => ''));
     const [numImages, setNumImages] = useState(1);
+    
+    // 用于拖拽排序的状态
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const styleOptions = ['默认', '3D卡通', '线稿', '像素', '写实', '水彩', '水墨画', '蜡笔', 'Q版', '钢笔淡彩', '版画'];
     const [style, setStyle] = useState(styleOptions[0]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -209,6 +213,32 @@ export default function ImageEditor() {
         setContentImages((prevImages) => prevImages.filter((img) => img !== image));
     };
 
+    // 拖拽排序相关函数
+    const handleDragStart = (index: number) => {
+        setDraggedIndex(index);
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+        const newImages = [...contentImages];
+        const draggedItem = newImages[draggedIndex];
+        newImages.splice(draggedIndex, 1);
+        newImages.splice(targetIndex, 0, draggedItem);
+
+        setContentImages(newImages);
+        setDraggedIndex(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
+    };
+
     const resetImage = () => {
         setPrompt('');
         setUploadImages([]);
@@ -379,6 +409,10 @@ export default function ImageEditor() {
             subtitle="智能编辑图像，生成高质量的图像"
         >
             <div>
+                <PromptList 
+                    onSelectPrompt={setPrompt} 
+                    currentPrompt={prompt} 
+                />
                 <div className="flex flex-col md:flex-row gap-6">
                     {/* Left Column: Form */}
                     <div className="w-full md:w-1/3 flex flex-col gap-4 bg-white rounded-lg shadow-sm p-6">
@@ -545,10 +579,26 @@ export default function ImageEditor() {
                                         );
                                     }}>
                                         {contentImages.map((image, index) => (
-                                            <div className={cn('view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500', uploadImages.includes(image) ? 'editing' : '')} key={index}>
+                                            <div 
+                                                className={cn('view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500', uploadImages.includes(image) ? 'editing' : '')} 
+                                                key={index}
+                                                draggable
+                                                onDragStart={() => handleDragStart(index)}
+                                                onDragOver={(e) => handleDragOver(e, index)}
+                                                onDrop={(e) => handleDrop(e, index)}
+                                                onDragEnd={handleDragEnd}
+                                            >
                                                 <PhotoView src={image}>
                                                     <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
                                                 </PhotoView>
+
+                                                {uploadImages.includes(image) && (
+                                                    <div className="absolute top-0 right-0 flex">
+                                                        <div className="bg-blue-500 text-white text-xs px-1 py-0.5 rounded-bl">
+                                                            #{uploadImages.indexOf(image) + 1}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', uploadImages.includes(image) ? 'block' : 'hidden')}>
                                                     <button
@@ -633,7 +683,9 @@ export default function ImageEditor() {
             }
             .view-list.editing {
                 border-color: #3b82f6;
-                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+            }
+            .view-list[draggable=true] {
+                cursor: move;
             }
             `}</style>
         </FeatureLayout>
