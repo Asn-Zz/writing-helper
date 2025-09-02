@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import Script from 'next/script';
 import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
@@ -13,10 +14,21 @@ import 'react-photo-view/dist/react-photo-view.css';
 const DEFAULT_SIZE = 1024;
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
+        if ('Compressor' in window) {
+            const compressor = new (window as any).Compressor(file, {
+                quality: 0.6,
+                success(result: any) {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(result);
+                    reader.onload = () => resolve(reader.result as string);
+                },
+                error: reject,
+            });
+        } else {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+        }
     });
 };
 
@@ -725,13 +737,14 @@ export default function ImageEditor() {
             .view-list:hover > div {
                 display: flex;
             }
-            .view-list.editing {
+            .view-list.editing {    
                 border-color: #3b82f6;
             }
             .view-list[draggable=true] {
                 cursor: move;
             }
             `}</style>
+            <Script src="https://cdn.jsdelivr.net/npm/compressorjs@1.1.0/dist/compressor.min.js" onLoad={() => console.log('Compressor loaded')} />
         </FeatureLayout>
     );
 }
