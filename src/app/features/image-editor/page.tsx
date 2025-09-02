@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash, FaGripLines } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
@@ -248,6 +248,9 @@ export default function ImageEditor() {
     const generateEditorImage = async () => {
         setIsImageLoading(true);
 
+        const placeholders = Array(numImages).fill('').map((_, idx) => `placeholder-${idx}`);
+        setContentImages(prev => [...prev, ...placeholders]);
+
         try {
             const imagePromises = uploadImages.map(async (url) => {
                 const response = await fetch(url);
@@ -264,44 +267,56 @@ export default function ImageEditor() {
             const results = await Promise.all(imagePromises);
             const validResults = results.filter(result => result !== null) as string[];
 
-            const generatedBase64Image = await generate({
-                ...apiConfig,
-                model: 'gemini-2.5-flash-image',
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                type: "text",
-                                text: prompt
-                            },
-                            ...validResults.map(base64Url => ({
-                                type: "image_url",
-                                image_url: {
-                                    url: base64Url,
+            const editImagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
+                const generatedBase64Image = await generate({
+                    ...apiConfig,
+                    model: 'gemini-2.5-flash-image',
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: prompt
                                 },
-                            })),
-                        ],
-                    },
-                ],
-                temperature: 0,
-                stream: false
+                                ...validResults.map(base64Url => ({
+                                    type: "image_url",
+                                    image_url: {
+                                        url: base64Url,
+                                    },
+                                })),
+                            ],
+                        },
+                    ],
+                    temperature: 0,
+                    stream: false
+                });
+                
+                if (generatedBase64Image.images?.length) {
+                    const [image] = generatedBase64Image.images;
+                    const response = await fetch(image.image_url.url);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                    }
+                    const blob = await response.blob();
+                    const file = new File([blob], "image.png", { type: blob.type });
+                    const blobUrl = URL.createObjectURL(file);
+
+                    setContentImages(prev => {
+                        const newImages = [...prev];
+                        const placeholderIndex = newImages.indexOf(placeholders[idx]);
+                        if (placeholderIndex !== -1) {
+                            newImages[placeholderIndex] = blobUrl;
+                        }
+                        return newImages;
+                    });
+                }
             });
             
-            if (generatedBase64Image.images?.length) {
-                const [image] = generatedBase64Image.images;
-                const response = await fetch(image.image_url.url);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-                }
-                const blob = await response.blob();
-                const file = new File([blob], "image.png", { type: blob.type });
-                const blobUrl = URL.createObjectURL(file);
-
-                setContentImages(prev => [...prev, blobUrl]);
-            }
+            await Promise.all(editImagePromises);
         } catch (error) {
             console.error('Error generating prompt from image:', error);
+            setContentImages(prev => prev.filter(url => !url.startsWith('placeholder-')));
         } finally {
             setIsImageLoading(false);
         }
@@ -314,9 +329,12 @@ export default function ImageEditor() {
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
+        
+        const placeholders = Array(numImages).fill('').map((_, idx) => `placeholder-${idx}`);
+        setContentImages(prev => [...prev, ...placeholders]);
 
         try {                
-            const imagePromises = Array.from({ length: numImages }).map(async () => {
+            const imagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
                 const seed = Math.floor(Math.random() * 100000);
                 const payload = { 
                     nologo: true, 
@@ -333,7 +351,16 @@ export default function ImageEditor() {
                 }
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
-                setContentImages(prev => [...prev, blobUrl]);
+                
+                setContentImages(prev => {
+                    const newImages = [...prev];
+                    const placeholderIndex = newImages.indexOf(placeholders[idx]);
+                    if (placeholderIndex !== -1) {
+                        newImages[placeholderIndex] = blobUrl;
+                    }
+                    return newImages;
+                });
+                
                 return blobUrl;
             });
 
@@ -341,6 +368,8 @@ export default function ImageEditor() {
         } catch (error) {
             console.error('Error generating cover image:', error);
             alert(`封面图生成失败: ${error instanceof Error ? error.message : String(error)}`);
+            
+            setContentImages(prev => prev.filter(url => !url.startsWith('placeholder-')));
         } finally {
             setIsImageLoading(false);
         }
@@ -578,63 +607,78 @@ export default function ImageEditor() {
                                             </>
                                         );
                                     }}>
-                                        {contentImages.map((image, index) => (
-                                            <div 
-                                                className={cn('view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500', uploadImages.includes(image) ? 'editing' : '')} 
-                                                key={index}
-                                                draggable
-                                                onDragStart={() => handleDragStart(index)}
-                                                onDragOver={(e) => handleDragOver(e, index)}
-                                                onDrop={(e) => handleDrop(e, index)}
-                                                onDragEnd={handleDragEnd}
-                                            >
-                                                <PhotoView src={image}>
-                                                    <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
-                                                </PhotoView>
-
-                                                {uploadImages.includes(image) && (
-                                                    <div className="absolute top-0 right-0 flex">
-                                                        <div className="bg-blue-500 text-white text-xs px-1 py-0.5 rounded-bl">
-                                                            #{uploadImages.indexOf(image) + 1}
+                                        {contentImages.map((image, index) => {
+                                            const isPlaceholder = image.startsWith('placeholder-');
+                                            const isEditingImage = uploadImages.includes(image);
+                                            
+                                            return (
+                                                <div 
+                                                    className={cn('view-list relative rounded-lg overflow-hidden border-1 border-gray-200 hover:border-blue-500', isEditingImage ? 'editing' : '')} 
+                                                    key={index}
+                                                    draggable
+                                                    onDragStart={() => handleDragStart(index)}
+                                                    onDragOver={(e) => handleDragOver(e, index)}
+                                                    onDrop={(e) => handleDrop(e, index)}
+                                                    onDragEnd={handleDragEnd}
+                                                >
+                                                    {isPlaceholder ? (
+                                                        <div className="bg-gray-200 rounded-xl w-full h-full flex items-center justify-center">
+                                                            <FaSpinner className="animate-spin text-gray-500 text-2xl" />
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    ) : (
+                                                        <>
+                                                            <PhotoView src={image}>
+                                                                <img src={image} alt={`${prompt || '生成的图像'} ${index + 1}`} />
+                                                            </PhotoView>
 
-                                                <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', uploadImages.includes(image) ? 'block' : 'hidden')}>
-                                                    <button
-                                                        onClick={() => handleDownload(image)}
-                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <FaDownload size={14} />
-                                                        <span className='text-[10px]'>下载</span>
-                                                    </button>
+                                                            {isEditingImage && (
+                                                                <div className="absolute top-0 right-0 flex">
+                                                                    <div className="bg-blue-500 text-white text-xs px-1 py-0.5 rounded-bl">
+                                                                        #{uploadImages.indexOf(image) + 1}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
 
-                                                    <button
-                                                        onClick={() => handleImageToPrompt(image)}
-                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <FaCopy size={14} />
-                                                        <span className='text-[10px]'>提示词</span>
-                                                    </button>
+                                                    {!isPlaceholder && (
+                                                        <div className={cn('absolute w-full bottom-0 left-0 px-4 py-2 flex justify-between gap-2 bg-black/30', isEditingImage ? 'block' : 'hidden')}>
+                                                            <button
+                                                                onClick={() => handleDownload(image)}
+                                                                className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                            >
+                                                                <FaDownload size={14} />
+                                                                <span className='text-[10px] hidden lg:block'>下载</span>
+                                                            </button>
 
-                                                    <button
-                                                        onClick={() => handleEditImage(image)}
-                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <FaEdit size={14} />
-                                                        <span className='text-[10px]'>{uploadImages.includes(image) ? '取消' : '编辑'}</span>
-                                                    </button>
+                                                            <button
+                                                                onClick={() => handleImageToPrompt(image)}
+                                                                className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                            >
+                                                                <FaCopy size={14} />
+                                                                <span className='text-[10px] hidden lg:block'>提示词</span>
+                                                            </button>
 
-                                                    <button
-                                                        onClick={() => handleDeleteImage(image)}
-                                                        className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <FaTrash size={14} />
-                                                        <span className='text-[10px]'>删除</span>
-                                                    </button>
+                                                            <button
+                                                                onClick={() => handleEditImage(image)}
+                                                                className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                            >
+                                                                <FaEdit size={14} />
+                                                                <span className='text-[10px] hidden lg:block'>{isEditingImage ? '取消' : '编辑'}</span>
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => handleDeleteImage(image)}
+                                                                className="flex items-center gap-1 text-white opacity-80 hover:opacity-100 cursor-pointer"
+                                                            >
+                                                                <FaTrash size={14} />
+                                                                <span className='text-[10px] hidden lg:block'>删除</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </PhotoProvider>
                                 </div>
                             ) : (
