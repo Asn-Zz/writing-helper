@@ -304,7 +304,7 @@ export default function ImageEditor() {
                     ],
                     temperature: 0,
                     stream: false
-                });
+                });                
                 
                 if (generatedBase64Image.images?.length) {
                     const [image] = generatedBase64Image.images;
@@ -324,6 +324,8 @@ export default function ImageEditor() {
                         }
                         return newImages;
                     });
+                } else {
+                    throw new Error(generatedBase64Image.content || 'Failed to generate image');
                 }
             });
             
