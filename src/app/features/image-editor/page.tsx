@@ -213,12 +213,14 @@ export default function ImageEditor() {
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (isImageLoading) return;
+        if (isImageLoading || !e.target.files) return;
 
-        const file = e.target.files?.[0];
-        const blobUrl = URL.createObjectURL(file as Blob);
-
-        setContentImages((prev) => [...prev, blobUrl]);
+        const files = e.target.files as FileList;
+        Array.from(files).forEach(file => {
+            const blobUrl = URL.createObjectURL(file as Blob);
+            setContentImages((prev) => [...prev, blobUrl]);
+            handleEditImage(blobUrl);
+        });
     };
 
     const handleDeleteImage = (image: string) => {
@@ -562,6 +564,7 @@ export default function ImageEditor() {
                                 id="image-upload"
                                 className="hidden"
                                 accept="image/*"
+                                multiple
                                 onChange={handleImageUpload}
                             />
                             <label
@@ -634,7 +637,7 @@ export default function ImageEditor() {
                                                     onDragEnd={handleDragEnd}
                                                 >
                                                     {isPlaceholder ? (
-                                                        <div className="bg-gray-200 rounded-xl w-full h-full flex items-center justify-center">
+                                                        <div className="bg-gray-200 rounded-lg w-full h-full min-h-[150px] flex items-center justify-center">
                                                             <FaSpinner className="animate-spin text-gray-500 text-2xl" />
                                                         </div>
                                                     ) : (
