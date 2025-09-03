@@ -49,6 +49,7 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
 
   // Save prompts to localStorage whenever prompts change
   useEffect(() => {
+    if (!prompts.length) return;
     try {
       localStorage.setItem('imageEditorPrompts', JSON.stringify(prompts));
     } catch (error) {
@@ -94,6 +95,25 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
     }
   };
 
+  let loading = false;
+  const handleAddPromptListBySync = () => {
+    if (loading) return;
+    loading = true;
+    fetch(`${process.env.NEXT_PUBLIC_CDN_URL}/tmp/prompt.json`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.length > 0) {
+          setPrompts(data);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to fetch prompt sync:', error);
+      })
+      .finally(() => {
+        loading = false;
+      });
+  }
+
   const startEditing = (prompt: PromptItem) => {
     setEditingId(prompt.id);
     setEditTitle(prompt.title);
@@ -117,10 +137,20 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
     setEditingId(null);
   };
 
+  const clearPrompts = () => {
+    if (window.confirm('确定要清空提示词列表吗？')) {
+      setPrompts([]);
+      localStorage.removeItem('imageEditorPrompts');
+    }
+  };
+
   return (
     <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-800">提示词列表</h3>
+        <h3 className="text-lg font-semibold text-gray-800">
+          提示词列表
+          {prompts.length > 0 && <span className="text-xs text-red-500 ml-2 cursor-pointer" onClick={clearPrompts}>(清空)</span>}
+        </h3>
         <div className="flex gap-2">
           <button
             onClick={handleAddCurrentPrompt}
@@ -254,7 +284,7 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-4">暂无提示词，添加一些常用的提示词吧</p>
+          <p className="text-gray-500 text-center py-4">暂无提示词，<span className="text-blue-500 hover:text-blue-700 cursor-pointer" onClick={handleAddPromptListBySync}>添加</span>一些常用的提示词吧</p>
         )}
       </div>}
     </div>

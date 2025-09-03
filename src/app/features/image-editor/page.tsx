@@ -448,6 +448,32 @@ export default function ImageEditor() {
         handleSave(url);
     }, [prompt]);
 
+    const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = event.clipboardData.getData('text');
+        const urlRegex = /^(https|http):\/\/[^\s/$.?#].[^\s]*$/i;
+        
+        if (urlRegex.test(pastedText)) {
+            event.preventDefault();
+            if (window.confirm(`检测到链接，是否要抓取图片？\n${pastedText}`)) {
+                setIsLoading(true);
+                try {
+                    const response = await fetch(pastedText);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                    }
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    setContentImages(prev => [...prev, blobUrl]);
+                    handleEditImage(blobUrl);
+                } catch (error: any) {
+                    console.error(error);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        }
+    }
+
     return (
         <FeatureLayout
             title="图像编辑工具"
@@ -465,6 +491,7 @@ export default function ImageEditor() {
                             <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
+                                onPaste={handlePaste}
                                 placeholder="输入图像描述..."
                                 className="p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                 rows={5}
