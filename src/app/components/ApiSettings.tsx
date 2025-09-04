@@ -183,7 +183,7 @@ export default function ApiSettings({
   }
 
   return (
-    <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 space-y-4">
+    <div className="bg-white rounded-lg shadow-sm p-4 space-y-4">
       <div className="flex justify-between items-center cursor-pointer" onClick={toggleSettings}>
         <h3 className="font-medium text-gray-700 flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
@@ -354,7 +354,7 @@ export default function ApiSettings({
             </div>
           </div>
 
-          <div className="flex justify-between pt-2 border-t border-gray-100">
+          <div className="flex justify-between">
             <div className='flex justify-end'>
               <button
                 type="button"

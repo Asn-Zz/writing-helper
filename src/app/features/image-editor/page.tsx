@@ -8,7 +8,7 @@ import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { objectToQueryString, cn } from '@/app/lib/utils';
-import PromptList from './components/PromptList';
+import PromptList from '@/app/components/PromptList';
 import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
@@ -16,7 +16,7 @@ const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         if ('Compressor' in window) {
             const compressor = new (window as any).Compressor(file, {
-                quality: 0.6,
+                quality: 0.8,
                 success(result: any) {
                     const reader = new FileReader();
                     reader.readAsDataURL(result);
@@ -415,7 +415,7 @@ export default function ImageEditor() {
 
             const formData = new FormData();
             formData.append('file', file);
-            response = await fetch('/api/cos-upload', {
+            response = await fetch(`/api/cos-upload/image/${fileName}`, {
                 method: 'POST',
                 body: formData,
             });
