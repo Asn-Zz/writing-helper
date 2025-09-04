@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { FaBilibili, FaWeibo, FaZhihu, FaRegNewspaper, FaCat, FaSpinner, FaArrowUpRightFromSquare, FaTriangleExclamation, FaVideo, FaList, FaGrip } from 'react-icons/fa6';
+import { FaBilibili, FaWeibo, FaZhihu, FaRegNewspaper, FaCat, FaSpinner, FaArrowUpRightFromSquare, FaTriangleExclamation, FaVideo, FaList, FaGrip, FaFire } from 'react-icons/fa6';
 
-// Types
 interface HotListItem {
     title: string;
     hot: string;
@@ -11,23 +10,23 @@ interface HotListItem {
 }
 
 const fetchHotList = async (source: string): Promise<HotListItem[]> => {
-    const response = await fetch(`https://api.vvhan.com/api/hotlist/${source}`);
+    const response = await fetch(`https://hot-api.vhan.eu.org/v2?type=${source}`);
     if (!response.ok) {
         throw new Error(`请求'${source}'热榜失败 (状态码: ${response.status})`);
     }
     const result = await response.json();
-    if (!result.success || !Array.isArray(result.data)) {
+    if (!Array.isArray(result.data)) {
         throw new Error(`API返回无效数据: ${result.msg || '未知错误'}`);
     }
     return result.data.map((item: any) => ({
         title: item.title,
         hot: item.hot,
-        link: item.url || item.link || '#',
+        link: item.url || item.mobil_url || '#',
     }));
 };
 
 export default function HotLists() {
-    const [activeSource, setActiveSource] = useState('bili');
+    const [activeSource, setActiveSource] = useState('pengPai');
     const [listData, setListData] = useState<HotListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +36,7 @@ export default function HotLists() {
     const [gridError, setGridError] = useState<string | null>(null);
 
     const sources = useMemo(() => [
-        { id: 'bili', name: 'Bilibili', icon: <FaBilibili /> },
+        { id: 'pengPai', name: '澎湃', icon: <FaBilibili /> },
         { id: 'wbHot', name: '微博', icon: <FaWeibo /> },
         { id: 'zhihuHot', name: '知乎', icon: <FaZhihu /> },
         { id: 'douyinHot', name: '抖音', icon: <FaVideo /> },
@@ -138,11 +137,11 @@ export default function HotLists() {
                 </div>
             )}
 
-            <div className={`overflow-y-auto scrollbar-hide ${viewMode === 'list' ? 'h-[41rem]' : ''}`}>
+            <div className={`overflow-y-auto scrollbar-hide ${viewMode === 'list' ? 'h-auto' : ''}`}>
                 {viewMode === '' && (
                     <div className="flex flex-col gap-2 justify-center items-center h-full">
                         <span className="ml-3 text-gray-500">点击列表或网格按钮选择查看更多</span>
-                        <img src="https://60s.viki.moe/v2/60s?encoding=image-proxy" alt="" className="w-1/2 max-h-[60rem] object-contain" />
+                        <img src={`https://60s.viki.moe/v2/60s?encoding=image-proxy&day=${new Date().getDate()}`} alt="" className="w-1/2 max-h-[60rem] object-contain" />
                     </div>
                 )}
 
@@ -178,8 +177,13 @@ export default function HotLists() {
                                             className="flex items-start text-sm text-gray-800 hover:text-blue-600"
                                         >
                                             <span className="text-blue-500 font-semibold w-8 text-center">{index + 1}.</span>
-                                            <span className="flex-1">{item.title}</span>
-                                            <FaArrowUpRightFromSquare className="text-xs ml-2 opacity-50" />
+                                            <span className="flex-1 inline-flex items-center gap-2">
+                                                {item.title}
+                                                <span className="text-xs text-red-700 flex items-center">
+                                                    <FaFire className="text-xs opacity-50" />&nbsp;{item.hot}
+                                                </span>
+                                            </span>
+                                            <FaArrowUpRightFromSquare className="text-xs opacity-50" />
                                         </a>
                                     </li>
                                 ))}
@@ -229,6 +233,9 @@ export default function HotLists() {
                                                          <a href={item.link} target="_blank" rel="noopener noreferrer" title={item.title} className="flex items-center text-gray-700 hover:text-blue-600 transition-colors">
                                                              <span className="font-bold text-sm w-7 text-center text-blue-500/80">{index + 1}</span>
                                                              <span className="flex-1 truncate">{item.title}</span>
+                                                            <span className="text-xs text-red-700 flex items-center">
+                                                                <FaFire className="text-xs opacity-50" />&nbsp;{item.hot}
+                                                            </span>
                                                          </a>
                                                      </li>
                                                 ))}
