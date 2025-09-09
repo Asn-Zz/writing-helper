@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { FaBilibili, FaWeibo, FaZhihu, FaRegNewspaper, FaCat, FaSpinner, FaArrowUpRightFromSquare, FaTriangleExclamation, FaVideo, FaList, FaGrip, FaFire } from 'react-icons/fa6';
+import { FaSpinner, FaArrowUpRightFromSquare, FaTriangleExclamation, FaList, FaGrip, FaFire, FaBots } from 'react-icons/fa6';
 
 interface HotListItem {
     title: string;
@@ -36,12 +36,12 @@ export default function HotLists() {
     const [gridError, setGridError] = useState<string | null>(null);
 
     const sources = useMemo(() => [
-        { id: 'pengPai', name: '澎湃', icon: <FaBilibili /> },
-        { id: 'wbHot', name: '微博', icon: <FaWeibo /> },
-        { id: 'zhihuHot', name: '知乎', icon: <FaZhihu /> },
-        { id: 'douyinHot', name: '抖音', icon: <FaVideo /> },
-        { id: 'toutiao', name: '头条', icon: <FaRegNewspaper /> },
-        { id: 'baiduRD', name: '百度', icon: <FaCat /> },
+        { id: 'pengPai', name: '澎湃', icon: <FaBots /> },
+        { id: 'wbHot', name: '微博', icon: <FaBots /> },
+        { id: 'qqNews', name: '腾讯新闻', icon: <FaBots /> },
+        { id: 'douyinHot', name: '抖音', icon: <FaBots /> },
+        { id: 'toutiao', name: '头条', icon: <FaBots /> },
+        { id: 'baiduRD', name: '百度', icon: <FaBots /> },
     ], []);
 
     const loadData = useCallback(async (source: string) => {
@@ -130,7 +130,7 @@ export default function HotLists() {
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                         >
-                            <span className="mr-1.5 text-lg">{source.icon}</span>
+                            {/* <span className="mr-1.5 text-lg">{source.icon}</span> */}
                             {source.name}
                         </button>
                     ))}
@@ -180,7 +180,7 @@ export default function HotLists() {
                                             <span className="flex-1 inline-flex items-center gap-2">
                                                 {item.title}
                                                 <span className="text-xs text-red-700 flex items-center">
-                                                    <FaFire className="text-xs opacity-50" />&nbsp;{item.hot}
+                                                    <FaFire className="text-xs opacity-50" />&nbsp;{item.hot?.replace(/NaN|undefined/g, '0')}
                                                 </span>
                                             </span>
                                             <FaArrowUpRightFromSquare className="text-xs opacity-50" />

@@ -12,6 +12,7 @@ import {
 } from '@/app/lib/constant'
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { storeAuthKey } from '@/app/lib/auth';
+import { useToast } from '@/components/toast';
 
 export interface ApiConfigProps {
   apiProvider: ApiProvider;
@@ -112,11 +113,16 @@ export default function ApiSettings({
   };
 
   const clearApiConfig = () => {
+    if (!window.confirm('确定要清除API配置吗？')) return;
+    
     try {
-      setSettingConfig(DEFAULT_LLM);
-      loadApiConfig(DEFAULT_LLM);
-      setCachedProviderModels({});
-      console.log('API配置已重置');
+      localStorage.clear();
+
+      fetch('/api/auth', {
+        method: 'DELETE',
+      }).then(() => {
+        window.location.reload();
+      });
     } catch (error) {
       console.error('清除API配置失败:', error);
     }
@@ -171,16 +177,35 @@ export default function ApiSettings({
     }
   };
 
-  const setAuthToken = () => {
+  const { addToast } = useToast();
+  const setAuthToken = async () => {
     const password = window.prompt('请输入访问密码:');
-
-    if (password === process.env.NEXT_PUBLIC_AUTH_TOKEN) {
-      localStorage.setItem(storeAuthKey, process.env.NEXT_PUBLIC_AUTH_TOKEN);
-      setSettingConfig(DEFAULT_ADMIN_LLM)
-      loadApiConfig(DEFAULT_ADMIN_LLM)
-      console.log('认证成功');
+    
+    if (!password) return;
+    
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        localStorage.setItem(storeAuthKey, password);
+        setSettingConfig(DEFAULT_ADMIN_LLM);
+        loadApiConfig(DEFAULT_ADMIN_LLM);
+        addToast('认证成功！', 'success', 5000);
+      } else {
+        addToast(`认证失败: ${data.message}`, 'error', 5000);
+      }
+    } catch (error) {
+      addToast('认证请求失败，请检查网络连接', 'error', 5000);
     }
-  }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 space-y-4">

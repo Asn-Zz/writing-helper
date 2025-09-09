@@ -740,7 +740,9 @@ export default function ImageEditor() {
 
                 {imageHistory.length > 0 && (
                     <div className="mt-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">我的作品</h3>
+                        <h3 className="flex items-center justify-between text-lg font-semibold text-gray-800 mb-4">
+                            我的作品<a href="https://www.iodraw.com/tool/image-editor" target="_blank" className="text-xs text-blue-500 hover:underline">在线编辑</a>
+                        </h3>
                         {imageHistory.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {imageHistory.map((image, index) => (

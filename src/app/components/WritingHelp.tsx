@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useApiSettings } from './ApiSettingsContext';
 import { generate } from '../lib/api';
+import { useToast } from '@/components/toast';
+import { useRouter } from 'next/navigation';
 
 export default function WritingHelp() {
   const { apiConfig } = useApiSettings();
@@ -25,6 +27,17 @@ export default function WritingHelp() {
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  // 监听url变化，如果url中包含redirect_url，则提示未授权然后清除url中的redirect_url
+  const router = useRouter();
+  const { addToast } = useToast();
+  useEffect(() => {
+    const redirectUrl = new URLSearchParams(window.location.search).get('redirect_url');
+    if (redirectUrl) {
+      addToast('没有权限访问', 'error', 3000);
+      router.replace('/');
+    }
   }, []);
 
   // 获取写作建议

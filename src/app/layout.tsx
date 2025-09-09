@@ -3,6 +3,8 @@ import Script from 'next/script';
 import { Metadata } from "next";
 import Footer from "./components/Footer";
 import { ApiSettingsProvider } from "./components/ApiSettingsContext";
+import { ToastProvider } from "@/components/toast/ToastContext";
+import { ToastContainer } from "@/components/toast/ToastContainer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -50,11 +52,14 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <ApiSettingsProvider>
-          <div className="flex-grow">
-            {children}
-          </div>
-        </ApiSettingsProvider>
+        <ToastProvider>
+          <ApiSettingsProvider>
+            <div className="flex-grow">
+              {children}
+            </div>
+          </ApiSettingsProvider>
+          <ToastContainer />
+        </ToastProvider>
         <Footer />
       </body>
     </html>
