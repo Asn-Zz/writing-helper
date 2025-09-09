@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-export interface Toast {
+export interface IToast {
   id: string;
   message: string;
   type: ToastType;
@@ -12,7 +12,7 @@ export interface Toast {
 }
 
 interface ToastContextType {
-  toasts: Toast[];
+  toasts: IToast[];
   addToast: (message: string, type: ToastType, duration?: number) => void;
   removeToast: (id: string) => void;
 }
@@ -20,11 +20,11 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toasts, setToasts] = useState<IToast[]>([]);
 
   const addToast = (message: string, type: ToastType, duration: number = 3000) => {
     const id = Math.random().toString(36).substring(2, 9);
-    const toast: Toast = { id, message, type, duration };
+    const toast: IToast = { id, message, type, duration };
     
     setToasts((prev) => [...prev, toast]);
     
