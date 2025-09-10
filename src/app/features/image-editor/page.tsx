@@ -7,7 +7,7 @@ import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
-import { objectToQueryString, cn } from '@/app/lib/utils';
+import { objectToQueryString, cn, base64ToBlob } from '@/app/lib/utils';
 import PromptList from '@/app/components/PromptList';
 import 'react-photo-view/dist/react-photo-view.css';
 
@@ -152,6 +152,42 @@ export default function ImageEditor() {
         }
     };
 
+    const [isEditingImage, setIsEditingImage] = useState(false);
+    const initFilerobotImageEditor = (imageUrl: string) => {
+        const config = {
+            source: imageUrl,
+            onSave: (editedImageObject: any) => {                
+                const { imageBase64, mimeType } = editedImageObject;
+                const imageBlob = URL.createObjectURL(base64ToBlob(imageBase64, mimeType));
+
+                setContentImages(prev => prev.map(url => url === imageUrl ? imageBlob : url));
+                setUploadImages(prev => prev.map(url => url === imageUrl ? imageBlob : url));
+                handleEditImage(imageBlob);
+            },
+            annotationsCommon: {
+                fill: '#ff0000'
+            },
+            Text: { text: 'AI+' },
+            Rotate: { angle: 90, componentType: 'slider' },
+            tabsIds: ['Adjust', 'Finetune', 'Watermark', 'Annotate', 'Filters', 'Resize'],
+            defaultTabId: 'Adjust',
+            defaultToolId: 'Text',
+        };
+        
+        const filerobotImageEditor = new window.FilerobotImageEditor(
+            document.querySelector('#editor_container'),
+            config
+        );
+
+        setIsEditingImage(true);
+        filerobotImageEditor.render({
+            onClose () {
+                filerobotImageEditor.terminate();
+                setIsEditingImage(false);
+            }
+        });
+    };
+
     const handleEditImage = useCallback(async (imageUrl: string) => {
         const isAlreadyEditing = uploadImages.includes(imageUrl);
         
@@ -160,11 +196,14 @@ export default function ImageEditor() {
             if (uploadImages.length <= 1) {
                 setModel(modelOptions[0]);
             }
+            setIsEditingImage(false)
             return;
         }
 
         setUploadImages(prev => [...prev, imageUrl]);
         setModel(modelOptions[2]);
+
+        initFilerobotImageEditor(imageUrl);
     }, [uploadImages]);
 
     const handleImageToPrompt = async (imageUrl: string) => {
@@ -738,6 +777,10 @@ export default function ImageEditor() {
                     </div>
                 </div>
 
+                <div className={cn('my-6', isEditingImage ? 'block' : 'hidden')}>
+                    <div id='editor_container'></div>
+                </div>
+
                 {imageHistory.length > 0 && (
                     <div className="mt-6">
                         <h3 className="flex items-center justify-between text-lg font-semibold text-gray-800 mb-4">
@@ -767,7 +810,7 @@ export default function ImageEditor() {
                 )}
             </div>
 
-            <style jsx global>{`
+            <style jsx>{`
             .view-list:hover > div {
                 display: flex;
             }
@@ -777,8 +820,16 @@ export default function ImageEditor() {
             .view-list[draggable=true] {
                 cursor: move;
             }
+            #editor_container {
+                position: relative;
+                width: 100%;
+                box-shadow: 0 2px 41px 10px #6b82af1a;
+                border-radius: 8px;
+                height: 580px;
+            }
             `}</style>
             <Script src="https://cdn.jsdelivr.net/npm/compressorjs@1.1.0/dist/compressor.min.js" onLoad={() => console.log('Compressor loaded')} />
+            <Script src="https://scaleflex.cloudimg.io/v7/plugins/filerobot-image-editor/latest/filerobot-image-editor.min.js" onLoad={() => console.log('Filerobot Image Editor loaded')} />
         </FeatureLayout>
     );
 }

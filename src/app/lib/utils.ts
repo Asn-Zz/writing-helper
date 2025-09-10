@@ -68,3 +68,14 @@ export function objectToQueryString(params: Record<string, any>) {
       .map(([key, value]) => `${key}=${value}`)
       .join('&');
 }
+
+export function base64ToBlob(base64: string, mimeType: string = '') {
+  const byteCharacters = atob(base64.split(',')[1]); // 解码 Base64
+  const byteArrays = [];
+  for (let i = 0; i < byteCharacters.length; i += 512) {
+    const slice = byteCharacters.slice(i, i + 512);
+    const byteNumbers = new Array(slice.length).fill(0).map((_, j) => slice.charCodeAt(j));
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+  return new Blob(byteArrays, { type: mimeType });
+}
