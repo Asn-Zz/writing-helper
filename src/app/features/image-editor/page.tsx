@@ -32,6 +32,12 @@ const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
+const modelKeys = {
+    'flux': 'flux',
+    'seedream': 'seedream4',
+    'nano-banana': 'gemini-2.5-flash-image'
+};
+
 export default function ImageEditor() {
     const { apiConfig } = useApiSettings();
     const [prompt, setPrompt] = useState('');
@@ -50,10 +56,10 @@ export default function ImageEditor() {
     const [style, setStyle] = useState(styleOptions[0]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    const modelOptions = ['flux', 'turbo', 'nano-banana'];
+    const modelOptions = Object.keys(modelKeys);
     const [model, setModel] = useState(modelOptions[0]);
     const [uploadImages, setUploadImages] = useState<string[]>([]);
-    const isEditing = useMemo(() => model === modelOptions[2] && uploadImages.length > 0, [model, uploadImages]);
+    const isEditing = useMemo(() => model !== modelOptions[0] && uploadImages.length > 0, [model, uploadImages]);
     const [imageHistory, setImageHistory] = useState<string[]>([]);
 
     const [background, setBackground] = useState({});
@@ -323,7 +329,7 @@ export default function ImageEditor() {
             const editImagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
                 const generatedBase64Image = await generate({
                     ...apiConfig,
-                    model: 'gemini-2.5-flash-image',
+                    model: modelKeys[model as keyof typeof modelKeys],
                     messages: [
                         {
                             role: "user",
@@ -828,7 +834,7 @@ export default function ImageEditor() {
                 height: 580px;
             }
             `}</style>
-            <Script src="https://cdn.jsdelivr.net/npm/compressorjs@1.1.0/dist/compressor.min.js" onLoad={() => console.log('Compressor loaded')} />
+            {/* <Script src="https://cdn.jsdelivr.net/npm/compressorjs@1.1.0/dist/compressor.min.js" onLoad={() => console.log('Compressor loaded')} /> */}
             <Script src="https://scaleflex.cloudimg.io/v7/plugins/filerobot-image-editor/latest/filerobot-image-editor.min.js" onLoad={() => console.log('Filerobot Image Editor loaded')} />
         </FeatureLayout>
     );
