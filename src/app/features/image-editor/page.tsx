@@ -207,8 +207,6 @@ export default function ImageEditor() {
         }
 
         setUploadImages(prev => [...prev, imageUrl]);
-        setModel(modelOptions[2]);
-
         initFilerobotImageEditor(imageUrl);
     }, [uploadImages]);
 
@@ -384,7 +382,7 @@ export default function ImageEditor() {
     };
 
     const generateCoverImage = useCallback(async () => {        
-        if (model === modelOptions[2]) return generateEditorImage();
+        if (model !== modelOptions[0]) return generateEditorImage();
         
         const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
