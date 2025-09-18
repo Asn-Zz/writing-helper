@@ -7,7 +7,7 @@ export * from './utils';
 
 export async function generate(request: GenerateRequest): Promise<ApiResponse> {
   try {
-    const { apiUrl, apiKey, prompt, model, messages, handler, temperature = 0.7 } = request;
+    const { apiUrl, apiKey, prompt, model, messages, handler, temperature = 0.7, ...rest } = request;
     const stream = request.stream ?? true;
     
     // Detect API provider type from URL (simple detection)
@@ -30,14 +30,9 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         model: model || 'gpt-4',
         messages,
         stream,
-        temperature
+        temperature,
+        ...rest
       };
-      if (request.response_format) {
-        requestBody.response_format = request.response_format;
-      }
-      if (request.extra_body) {
-        requestBody.extra_body = request.extra_body;
-      }
     }
     
     try {

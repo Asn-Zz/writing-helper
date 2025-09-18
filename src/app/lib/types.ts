@@ -92,6 +92,7 @@ export interface GenerateRequest {
   response_format?: unknown;
   handler?: (chunk: string) => void;
   extra_body?: string;
+  size?: string;
 }
 
 export interface OcrRequest {

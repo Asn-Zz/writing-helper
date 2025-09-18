@@ -33,8 +33,9 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const modelKeys = {
-    'flux': 'flux',
+    'flux(仅生成)': 'flux',
     'seedream': 'seedream4',
+    'qwen-image': 'qwen-image-edit',
     'nano-banana': 'gemini-2.5-flash-image'
 };
 
@@ -345,6 +346,7 @@ export default function ImageEditor() {
                             ],
                         },
                     ],
+                    size: `${width}x${height}`,
                     temperature: 0,
                     stream: false
                 });                
