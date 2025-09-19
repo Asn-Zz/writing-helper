@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Script from 'next/script';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import { generate } from '@/app/lib/api';
 import { objectToQueryString, cn, base64ToBlob } from '@/app/lib/utils';
 import PromptList from '@/app/components/PromptList';
+import History from './components/History';
 import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
@@ -32,6 +33,11 @@ const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
+// Workflow modes
+const workflow = {
+    'batch': 'batch',
+    'sequential': 'sequential'
+}
 const modelKeys = {
     'flux(仅生成)': 'flux',
     'seedream': 'seedream4',
@@ -61,7 +67,11 @@ export default function ImageEditor() {
     const [model, setModel] = useState(modelOptions[0]);
     const [uploadImages, setUploadImages] = useState<string[]>([]);
     const isEditing = useMemo(() => model !== modelOptions[0] && uploadImages.length > 0, [model, uploadImages]);
-    const [imageHistory, setImageHistory] = useState<string[]>([]);
+
+    // Workflow mode state
+    const [workflowMode, setWorkflowMode] = useState(workflow['batch']);
+    const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
+    const isBatchMode = useMemo(() => workflowMode === workflow['batch'], [workflowMode]);
 
     const [background, setBackground] = useState({});
     const generateBackgroundImage = useCallback(() => {
@@ -76,46 +86,10 @@ export default function ImageEditor() {
         generateBackgroundImage();
     }, [generateBackgroundImage]);
 
+    // Reset selected prompts when switching to batch mode
     useEffect(() => {
-        try {
-            const storedHistory = localStorage.getItem('imageHistory');
-            if (storedHistory) {
-                setImageHistory(JSON.parse(storedHistory));
-            }
-        } catch (error) {
-            console.error("Failed to load image history from localStorage", error);
-        }
-    }, []);
-
-    
-    const addImagesToHistory = useCallback((newImages: string[]) => {
-        setImageHistory(prevHistory => {
-            const updatedHistory = [...new Set([...newImages, ...prevHistory])].slice(0, 50);
-            try {
-                localStorage.setItem('imageHistory', JSON.stringify(updatedHistory));
-            } catch (error) {
-                console.error("Failed to save image history to localStorage", error);
-            }
-            return updatedHistory;
-        });
-    }, []);
-
-    const handleDeleteFromHistory = useCallback((imageUrl: string) => {
-        setImageHistory(prevHistory => {
-            const updatedHistory = prevHistory.filter(img => img !== imageUrl);
-            try {
-                localStorage.setItem('imageHistory', JSON.stringify(updatedHistory));
-            } catch (error) {
-                console.error("Failed to update image history in localStorage", error);
-            }
-            return updatedHistory;
-        });
-
-        const formData = new FormData();
-        const key = imageUrl.split('/').pop() || '';
-        formData.append('key', key);
-        fetch('/api/cos-upload', { method: 'DELETE', body: formData });
-    }, []);
+        if (isBatchMode) { setSelectedPrompts([]); }
+    }, [isBatchMode]);
 
     const handleTranslate = async () => {
         if (!prompt.trim() || isLoading) return;
@@ -125,7 +99,7 @@ export default function ImageEditor() {
             const translatedPrompt = await generate({
                 ...apiConfig,
                 model: 'gemini-2.0-flash-exp',
-                messages: [{ role: 'user', content: `Translate the following to English, provide only the translated text, no explanation: ${prompt}` }],
+                messages: [{ role: 'user', content: `Automatically translate the following to English or Chinese, provide only for the translated text, no explanation: ${prompt}` }],
                 temperature: 0,
             });
             if (translatedPrompt) {
@@ -167,16 +141,14 @@ export default function ImageEditor() {
                 const { imageBase64, mimeType } = editedImageObject;
                 const imageBlob = URL.createObjectURL(base64ToBlob(imageBase64, mimeType));
 
-                setContentImages(prev => prev.map(url => url === imageUrl ? imageBlob : url));
-                setUploadImages(prev => prev.map(url => url === imageUrl ? imageBlob : url));
-                handleEditImage(imageBlob);
+                setContentImages(prev => [...prev, imageBlob]);
             },
             annotationsCommon: {
                 fill: '#ff0000'
             },
             Text: { text: 'AI+' },
             Rotate: { angle: 90, componentType: 'slider' },
-            tabsIds: ['Adjust', 'Finetune', 'Watermark', 'Annotate', 'Filters', 'Resize'],
+            tabsIds: ['Adjust', 'Annotate', 'Watermark', 'Finetune', 'Filters', 'Resize'],
             defaultTabId: 'Adjust',
             defaultToolId: 'Text',
         };
@@ -269,6 +241,7 @@ export default function ImageEditor() {
 
     const handleDeleteImage = (image: string) => {
         setContentImages((prevImages) => prevImages.filter((img) => img !== image));
+        setUploadImages((prevImages) => prevImages.filter((img) => img !== image));
     };
 
     // 拖拽排序相关函数
@@ -301,6 +274,7 @@ export default function ImageEditor() {
         setPrompt('');
         setUploadImages([]);
         setContentImages([]);
+        setSelectedPrompts([]);
     }
 
     const generateEditorImage = async () => {
@@ -323,9 +297,8 @@ export default function ImageEditor() {
             });
 
             const results = await Promise.all(imagePromises);
-            const validResults = results.filter(result => result !== null) as string[];
-
-            const editImagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
+            let validResults = results.filter(result => result !== null) as string[];
+            const generatedBase64Image = async (prompt: string, idx: number) => {
                 const generatedBase64Image = await generate({
                     ...apiConfig,
                     model: modelKeys[model as keyof typeof modelKeys],
@@ -350,7 +323,7 @@ export default function ImageEditor() {
                     temperature: 0,
                     stream: false
                 });                
-                
+            
                 if (generatedBase64Image.images?.length) {
                     const [image] = generatedBase64Image.images;
                     const response = await fetch(image.image_url.url);
@@ -369,12 +342,31 @@ export default function ImageEditor() {
                         }
                         return newImages;
                     });
+
+                    return file;
                 } else {
                     throw new Error(generatedBase64Image.content || 'Failed to generate image');
                 }
-            });
+            }
+
+            // Handle different workflow modes
+            if (isBatchMode || (workflowMode === 'sequential' && selectedPrompts.length === 0)) {
+                // Batch mode or sequential mode with no selected prompts - use the same prompt for all
+                const editImagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
+                    return generatedBase64Image(prompt, idx);
+                });
             
-            await Promise.all(editImagePromises);
+                await Promise.all(editImagePromises);
+            } else if (workflowMode === 'sequential') {
+                // Sequential mode with selected prompts - generate images one by one
+                for (let idx = 0; idx < Math.min(selectedPrompts.length, numImages); idx++) {
+                    const selectedPrompt = selectedPrompts[idx] || prompt;
+                    const file = await generatedBase64Image(selectedPrompt, idx);
+                    const newBase64Url = await fileToBase64(file);
+                    
+                    validResults = [newBase64Url];
+                }
+            }
         } catch (error) {
             console.error('Error generating prompt from image:', error);
             setContentImages(prev => prev.filter(url => !url.startsWith('placeholder-')));
@@ -388,14 +380,14 @@ export default function ImageEditor() {
         
         const basePrompt = prompt.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
-        const imagePrompt = encodeURIComponent(finalPrompt);
         setIsImageLoading(true);
         
         const placeholders = Array(numImages).fill('').map((_, idx) => `placeholder-${idx}`);
         setContentImages(prev => [...prev, ...placeholders]);
 
-        try {                
+        try {
             const imagePromises = Array.from({ length: numImages }).map(async (_, idx) => {
+                const imagePrompt = encodeURIComponent(finalPrompt);
                 const seed = Math.floor(Math.random() * 100000);
                 const payload = { 
                     nologo: true, 
@@ -434,7 +426,7 @@ export default function ImageEditor() {
         } finally {
             setIsImageLoading(false);
         }
-    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions, model]);
+    }, [prompt, isImageLoading, width, height, numImages, style, styleOptions, model, workflowMode, selectedPrompts]);
 
     const toggleRatioLock = useCallback((value: string) => {
         setAspectRatio(value);
@@ -448,6 +440,7 @@ export default function ImageEditor() {
         }
     }, [width, height]);
 
+    const historyRef = useRef<any>(null);
     const handleSave = useCallback(async (imageUrl: string) => {
         try {
             let response = await fetch(imageUrl);
@@ -470,7 +463,7 @@ export default function ImageEditor() {
             const data = await response.json();
 
             if (data.message) {
-                addImagesToHistory([data.message]);
+                historyRef.current?.addImagesToHistory([data.message]);
             }
         } catch (error) {
             console.error(error);
@@ -537,7 +530,7 @@ export default function ImageEditor() {
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 onPaste={handlePaste}
-                                placeholder="输入图像描述..."
+                                placeholder="输入图像描述或者提示词..."
                                 className="p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                 rows={5}
                             />
@@ -556,6 +549,71 @@ export default function ImageEditor() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Workflow Mode Selection */}
+                        {numImages > 1 && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">工作流模式</label>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="workflowMode"
+                                            checked={isBatchMode}
+                                            onChange={() => setWorkflowMode('batch')}
+                                            className="mr-2"
+                                        />
+                                        批量生成 (批量)
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="workflowMode"
+                                            checked={!isBatchMode}
+                                            onChange={() => setWorkflowMode('sequential')}
+                                            className="mr-2"
+                                        />
+                                        顺序生成 (依次)
+                                    </label>
+                                </div>
+
+                                {workflowMode === 'sequential' && (
+                                    <div className="border border-gray-200 rounded-md p-3 mt-3">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="block text-sm font-medium text-gray-700">工作流</label>
+                                            <button 
+                                                onClick={() => { setSelectedPrompts(prev => [...prev, prompt.trim()]); }}
+                                                disabled={!prompt.trim() || selectedPrompts.includes(prompt.trim())}
+                                                className="flex items-center gap-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 disabled:opacity-50"
+                                            >
+                                                <FaPlus size={12} /> 添加当前
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                            {selectedPrompts.map((p, index) => (
+                                                <div key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center">
+                                                    <span className="mr-1">{index + 1}.</span>
+                                                    <span className="max-w-[120px] truncate">{p}</span>
+                                                    <button 
+                                                        onClick={() => setSelectedPrompts(prev => prev.filter((_, i) => i !== index))}
+                                                        className="ml-1 text-blue-600 hover:text-blue-900"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {selectedPrompts.length === 0 && (
+                                                <p className="text-gray-500 text-sm">请添加提示词用于依次生成</p>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            已添加 {selectedPrompts.length}，剩余 {numImages - selectedPrompts.length} 张
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-3">
                             <div className="flex items-end gap-2">
                                 <div className="flex-grow">
@@ -670,13 +728,13 @@ export default function ImageEditor() {
                     </div>
 
                     {/* Right Column: Image Display */}
-                    <div className={cn("w-full md:w-2/3 bg-white rounded-lg shadow-sm", { "p-6": contentImages.length })}>
-                        <div className="relative overflow-y-auto h-full" style={{ minHeight: '450px', maxHeight: '500px' }}>
-                            {isImageLoading && contentImages.length === 0 ? (
-                                <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
-                                    <FaSpinner className="animate-spin mr-2" /> 图像生成中...
-                                </div>
-                            ) : contentImages.length > 0 ? (
+                    <div className={cn("relative w-full md:w-2/3 bg-white rounded-lg shadow-sm", { "p-6": contentImages.length })}>
+                        {isImageLoading && contentImages.length === 0 ? (
+                            <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
+                                <FaSpinner className="animate-spin mr-2" /> 图像生成中...
+                            </div>
+                        ) : contentImages.length > 0 ? (
+                            <div className='absolute inset-0 h-full overflow-y-scroll p-6'>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                                     <PhotoProvider toolbarRender={({ onScale, scale, onRotate, rotate }) => {
                                         return (
@@ -770,16 +828,13 @@ export default function ImageEditor() {
                                         })}
                                     </PhotoProvider>
                                 </div>
-                            ) : (
-                                <div
-                                    className="absolute inset-0 !bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 cursor-pointer"
-                                    onClick={generateBackgroundImage}
-                                    style={background}
-                                    title="点击生成图像"
-                                >
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : <div
+                            className="absolute inset-0 !bg-gray-200 rounded-lg cursor-pointer"
+                            style={background}
+                            onClick={generateBackgroundImage}
+                            title="点击生成图像"
+                        />}
                     </div>
                 </div>
 
@@ -787,33 +842,7 @@ export default function ImageEditor() {
                     <div id='editor_container'></div>
                 </div>
 
-                {imageHistory.length > 0 && (
-                    <div className="mt-6">
-                        <h3 className="flex items-center justify-between text-lg font-semibold text-gray-800 mb-4">
-                            我的作品<a href="https://www.iodraw.com/tool/image-editor" target="_blank" className="text-xs text-blue-500 hover:underline">在线编辑</a>
-                        </h3>
-                        {imageHistory.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                {imageHistory.map((image, index) => (
-                                    <div key={index} className="relative group">
-                                        <img src={image} alt={`历史图片 ${index + 1}`} className="w-full max-h-40 object-cover rounded-md cursor-pointer shadow-md" />
-                                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-50 transition-opacity rounded-md">
-                                            <button onClick={() => { handleDeleteFromHistory(image); }} className="text-white p-2">
-                                                <FaTrash size={20} />
-                                            </button>
-
-                                            <button onClick={() => { setContentImages(prev => [...prev, image]); }} className="text-white p-2">
-                                                <FaEdit size={20} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-gray-500 text-center py-4">暂无历史记录。</p>
-                        )}
-                    </div>
-                )}
+                <History ref={historyRef} setContentImages={setContentImages} />
             </div>
 
             <style jsx>{`

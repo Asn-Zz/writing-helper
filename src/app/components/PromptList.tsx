@@ -93,6 +93,10 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
     onSelectPrompt(content);
   };
 
+  const handleCopyPrompt = (content: string) => {
+    navigator.clipboard.writeText(content);
+  };
+
   const handleAddCurrentPrompt = () => {
     if (currentPrompt.trim()) {
       const isDuplicate = prompts.some(p => p.content === currentPrompt.trim());
@@ -354,7 +358,7 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
                     >
                       {prompt.content}
                     </p>
-                    <div className="absolute bottom-1 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-1 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -368,10 +372,10 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleUsePrompt(prompt.content);
+                          handleCopyPrompt(prompt.content);
                         }}
                         className="text-blue-500 hover:text-blue-700"
-                        title="使用此提示词"
+                        title="复制此提示词"
                       >
                         <FaCopy size={12} />
                       </button>
