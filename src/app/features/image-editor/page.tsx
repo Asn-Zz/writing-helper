@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Script from 'next/script';
-import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaSpinner, FaLanguage, FaMagic, FaDownload, FaUpload, FaCopy, FaEdit, FaTrash, FaPlus, FaMagnet } from 'react-icons/fa';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import FeatureLayout from '@/app/components/FeatureLayout';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
@@ -10,6 +10,7 @@ import { generate } from '@/app/lib/api';
 import { objectToQueryString, cn, base64ToBlob } from '@/app/lib/utils';
 import PromptList from '@/app/components/PromptList';
 import History from './components/History';
+import Variables from './components/Variables';
 import 'react-photo-view/dist/react-photo-view.css';
 
 const DEFAULT_SIZE = 1024;
@@ -72,15 +73,14 @@ export default function ImageEditor() {
     const [workflowMode, setWorkflowMode] = useState(workflow['batch']);
     const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
     const isBatchMode = useMemo(() => workflowMode === workflow['batch'], [workflowMode]);
-
+    
     const [background, setBackground] = useState({});
     const generateBackgroundImage = useCallback(() => {
-        const seed = Math.floor(Math.random() * 100000);
-        setBackground({
-            background: `no-repeat url(https://bing.img.run/rand.php?seed=${seed}) center center/cover`,
-            backdropFilter: 'blur(5px)',
-        });
+        const seed = Math.floor(Math.random() * 100000);        
+        setBackground({background: `no-repeat url(https://bing.img.run/rand.php?seed=${seed}) center center/cover`, backdropFilter: 'blur(5px)'});
     }, []);
+
+    const variablesRef = useRef<any>(null);
 
     useEffect(() => {
         generateBackgroundImage();
@@ -377,8 +377,8 @@ export default function ImageEditor() {
 
     const generateCoverImage = useCallback(async () => {        
         if (model !== modelOptions[0]) return generateEditorImage();
-        
-        const basePrompt = prompt.trim() || 'sky';
+
+        const basePrompt = prompt?.trim() || 'sky';
         const finalPrompt = style !== styleOptions[0] ? `${style}, ${basePrompt}` : basePrompt;
         setIsImageLoading(true);
         
@@ -549,6 +549,9 @@ export default function ImageEditor() {
                                 )}
                             </div>
                         </div>
+                        
+                        {/* Variables replacement */}
+                        <Variables prompt={prompt} setPrompt={setPrompt} />
 
                         {/* Workflow Mode Selection */}
                         {numImages > 1 && (
