@@ -53,7 +53,7 @@ function History(props: HistoryProps, ref: any) {
 
     return (
         imageHistory.length > 0 && (
-            <div className="mt-6">
+            <div className="p-6 md:p-0 md:mt-6">
                 <h3 className="flex items-center justify-between text-lg font-semibold text-gray-800 mb-4">
                     我的作品<a href="https://www.iodraw.com/tool/image-editor" target="_blank" className="text-xs text-blue-500 hover:underline">在线编辑</a>
                 </h3>

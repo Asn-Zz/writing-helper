@@ -155,10 +155,10 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         navigator.clipboard.writeText(inputText).then(() => alert('文本已复制!')).catch(() => alert('复制失败'));
     }, [inputText]);
 
-    const compressText = useCallback(() => {
+    const compressText = (inputText: string) => {
         if (!inputText.trim()) return;
         setInputText(inputText.replace(/((\r\n|\r|\n)){2,}/g, '\n'));
-    }, [inputText, setInputText]);
+    };
     
     const loadExample = useCallback(() => {
         clearInput();
@@ -200,6 +200,25 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         }
     }, [setIsLoading, setApiError, setInputText]);
 
+    const handleCollateText = async () => {        
+        setIsLoading(true);
+        try {
+            const generatedPrompt = await generate({
+                ...apiConfig,
+                model: 'gemini-2.0-flash-exp',
+                messages: [{ role: 'user', content: `Remove markdown formatting and keep only the title and main body content:\n${inputText}` }],
+                temperature: 0,
+            });
+            if (generatedPrompt) {
+                setInputText(generatedPrompt.content);
+            }
+        } catch (error) {
+            console.error('Error generating prompt:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex items-center mb-4">
@@ -235,7 +254,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 
             <FileUpload
                 apiConfig={apiConfig}
-                onTextExtracted={setInputText}
+                onTextExtracted={compressText}
                 setApiError={setApiError}
                 setPdfPreviewUrl={setPdfPreviewUrl}
                 clearInput={clearInput}
@@ -250,11 +269,12 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
                         <FaLightbulb className="mr-1" /> 示例
                     </button>
                     <button
-                        onClick={compressText}
-                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base"
+                        onClick={handleCollateText}
+                        disabled={isLoading || !inputText.trim()}
+                        className="flex items-center border border-gray-300 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg transition text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                         title="移除多余的换行符"
                     >
-                        <FaCompressArrowsAlt className="mr-1" /> 压缩
+                        <FaCompressArrowsAlt className="mr-1" /> 整理
                     </button>
                 </div>
 
