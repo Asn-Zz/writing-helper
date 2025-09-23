@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
 import { Thesaurus, Correction } from '../types';
+import { getIsAuthed } from '@/app/lib/auth';
 
 interface ThesaurusModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
     const [editingCorrection, setEditingCorrection] = useState<Correction | null>(null);
     const [editingOriginal, setEditingOriginal] = useState('');
     const [editingSuggestion, setEditingSuggestion] = useState('');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen && thesauruses.length > 0 && !selectedGroupId) {
@@ -111,6 +113,35 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
 
     const selectedThesaurus = thesauruses.find(t => t.id === selectedGroupId);
 
+    const pathJson = 'tmp/words.json';
+    const handleAddThesaurusBySync = async () => {
+        if (loading) return;
+
+        setLoading(true);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_CDN_URL}/${pathJson}`);
+        const data = await response.json();
+        setThesauruses(data);
+        setLoading(false);
+    }
+
+    const uploadThesaurus = async () => {
+        if (getIsAuthed() && window.confirm('确定要上传词库吗？')) {
+            const formData = new FormData();
+            const file = new File([JSON.stringify(thesauruses)], pathJson.split('/').pop() || '', { type: 'application/json' });
+            formData.append('file', file);
+
+            const response = await fetch(`/api/cos-upload/${pathJson}`, {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to upload json: ${response.status} ${response.statusText}`);
+            }
+
+            handleAddThesaurusBySync();
+        }
+    };
+
     // Common class for inputs for consistency
     const inputClasses = "w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
 
@@ -119,7 +150,13 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
             <div className="bg-slate-50 rounded-lg shadow-xl w-full max-w-4xl flex flex-col h-[80vh] max-h-[700px]" onClick={e => e.stopPropagation()}>
                 {/* Modal Header */}
                 <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-lg flex-shrink-0">
-                    <h3 className="text-xl font-semibold text-slate-800">词库管理 <span className="text-base text-red-400 cursor-pointer ml-2" onClick={resetThesaurus}>(重置)</span></h3>
+                    <h3 className="text-xl font-semibold text-slate-800">词库管理
+                        <span className="text-sm inline-flex gap-2 cursor-pointer ml-2">
+                            <span className="text-red-400" onClick={resetThesaurus}>(清空)</span>
+                            <span className="text-blue-500" onClick={handleAddThesaurusBySync}>(同步)</span>
+                            <span className="text-blue-500" onClick={uploadThesaurus}>(上传)</span>
+                        </span>
+                    </h3>
                     <button onClick={onClose} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                         <FaTimes size={20} />
                     </button>
@@ -185,8 +222,8 @@ export default function ThesaurusModal({ isOpen, onClose, thesauruses, setThesau
                                         <input type="text" value={newOriginal} onChange={(e) => setNewOriginal(e.target.value)} placeholder="原词" className={inputClasses} />
                                         <input type="text" value={newSuggestion} onChange={(e) => setNewSuggestion(e.target.value)} placeholder="建议词" className={inputClasses} onKeyDown={(e) => e.key === 'Enter' && handleAddCorrection()} />
                                     </div>
-                                    <button onClick={handleAddCorrection} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 font-medium">
-                                        <FaPlus /> 添加词对
+                                    <button onClick={handleAddCorrection} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50" disabled={loading}>
+                                        <FaPlus /> {loading ? '添加中...' : '添加词对'}
                                     </button>
                                 </div>
                                 {/* Corrections List */}
