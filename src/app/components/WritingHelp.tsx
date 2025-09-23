@@ -40,6 +40,28 @@ export default function WritingHelp() {
     }
   }, []);
 
+  // 检查是否在Pake应用中运行，如果是则添加特殊处理
+  useEffect(() => {
+    const checkPakeEnvironment = () => {
+      // 检查是否在Pake打包的应用中
+      if (document.body.classList.contains('pake-app')) {
+        console.log('Running in Pake desktop app');
+        // 可以在这里添加针对Pake应用的特殊处理
+      }
+    };
+
+    // 等待DOM加载完成后再检查
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkPakeEnvironment);
+    } else {
+      checkPakeEnvironment();
+    }
+
+    return () => {
+      document.removeEventListener('DOMContentLoaded', checkPakeEnvironment);
+    };
+  }, []);
+
   // 获取写作建议
   const getWritingSuggestion = useCallback(async (prefix: string, suffix?: string) => {
     if (!prefix.trim()) {

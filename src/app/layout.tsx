@@ -5,6 +5,7 @@ import Footer from "./components/Footer";
 import { ApiSettingsProvider } from "./components/ApiSettingsContext";
 import { ToastProvider } from "@/components/toast/ToastContext";
 import { ToastContainer } from "@/components/toast/ToastContainer";
+import LoadingIndicator from "./components/LoadingIndicator";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,23 +31,25 @@ export default function RootLayout({
   return (
     <html lang="zh">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <Script id="cherry-studio-detection" strategy="afterInteractive">
-          {`
-            // 检测是否在Cherry Studio中运行
-            function isInCherryStudio() {
+        <LoadingIndicator />
+        <Script id="desktop-studio-detection" strategy="afterInteractive">
+          {`            
+            // 检测是否在Pake打包的桌面应用中运行
+            function isInPakeApp() {
               try {
-                return window.parent !== window && 
-                       window.location.ancestorOrigins && 
-                       window.location.ancestorOrigins[0].includes('cherry-studio');
+                // Pake应用通常会注入特定的全局变量或有特定的环境特征
+                return typeof window.__TAURI__ !== 'undefined' || 
+                       navigator.userAgent.includes('Tauri') ||
+                       document.body.classList.contains('pake-app');
               } catch (e) {
                 return false;
               }
             }
             
             // 根据环境调整UI
-            if (isInCherryStudio()) {
-              document.body.classList.add('in-cherry-studio');
-              console.log('Running in Cherry Studio environment');
+            if (isInPakeApp()) {
+              document.body.classList.add('pake-app');
+              console.log('Running in Pake desktop app');
             } else {
               console.log('Running in standard environment');
             }
