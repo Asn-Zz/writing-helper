@@ -66,13 +66,13 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
       
       {isEditing ? (
         <textarea
-          className="w-full p-4 min-h-[500px] font-mono text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full p-4 h-full font-mono text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={content}
           onChange={handleChange}
           placeholder="在此输入Markdown内容..."
         />
       ) : (
-        <div className="prose prose-sm max-w-none p-4 min-h-[500px] overflow-auto bg-white">
+        <div className="prose prose-sm px-4 pb-10 h-full overflow-scroll bg-white">
           {content ? (
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}

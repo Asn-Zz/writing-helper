@@ -59,7 +59,7 @@ export default function WritingAssistant() {
     try {      
       const translatedPrompt = await generate({
           ...apiConfig,
-          model: 'gemini-2.5-pro',
+          // model: 'gemini-2.5-pro',
           messages: newMessages,
           temperature: 0.7,
           handler(message) {
@@ -248,7 +248,7 @@ export default function WritingAssistant() {
         
           {/* Output Section */}
           <div>
-            <div className="bg-white shadow-sm rounded-xl p-6 border border-gray-200 h-full flex flex-col">
+            <div className="bg-white shadow-sm rounded-xl p-6 border border-gray-200 h-full flex flex-col relative">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
@@ -282,7 +282,7 @@ export default function WritingAssistant() {
                 )}
               </div>
               
-              <div className="flex-grow">
+              <div className="flex-grow min-h-[500px]">
                 {error && (
                   <div className="bg-red-50 text-red-700 p-4 rounded-md border border-red-200 mb-4">
                     <div className="font-medium flex items-center">
@@ -306,7 +306,7 @@ export default function WritingAssistant() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full rounded-lg">
+                  <div className="absolute top-[10%] left-0 w-full h-[90%] rounded-lg p-6 pt-0">
                     <MarkdownEditor 
                       initialContent={output} 
                       onContentChange={(content) => {
