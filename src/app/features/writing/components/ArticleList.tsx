@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaEdit, FaFileExport, FaLink, FaPlus, FaTrash, FaUpload } from 'react-icons/fa';
+import { FaEdit, FaFileExport, FaLink, FaTrash, FaUpload } from 'react-icons/fa';
 import { useLocalStorage } from '@/app/lib/store';
 
 export interface ArticleItem {
@@ -28,23 +28,29 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
 
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+        const files = event.target.files;
+        if (!files?.length) return;
 
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await fetch('/api/file-upload', {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'File upload failed');
+        const newArticles: ArticleItem[] = [];
+        const handleFile = async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/api/file-upload', {
+                method: 'POST',
+                body: formData,
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'File upload failed');
+            }
+            
+            const data = await response.json();
+            newArticles.push({ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title: file.name, content: data.text });
         }
 
-        const data = await response.json();
-        setArticles([...articles, { id: Date.now().toString(), title: file.name, content: data.text }]);
+        await Promise.all([...files].map(handleFile));
+        setArticles([...articles, ...newArticles]);
     };
 
     const handleDeleteArticle = (id: string) => {
@@ -60,7 +66,7 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
     const saveEdit = () => {
         if (editingId && editContent.trim()) {
             const handle = (a: ArticleItem) => a.id === editingId ? { ...a, title: editTitle.trim() || a.title, content: editContent.trim() } : a
-            setArticles(prev => prev.map(handle));
+            setArticles(articles.map(handle));
             setEditingId(null);
         }
     };
@@ -97,7 +103,7 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
                             <FaUpload size={12} />
                             上传
                         </button>
-                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                        <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
                     </div>
                 </div>
             </div>
