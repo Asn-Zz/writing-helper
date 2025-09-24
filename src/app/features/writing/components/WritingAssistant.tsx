@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { WritingRequest } from '@/app/lib/types';
-import { generateContent, exportToMarkdown } from '@/app/lib/api';
-import MarkdownEditor from './MarkdownEditor';
+import React, { useState, useMemo, useRef } from 'react';
+import { generate, exportToMarkdown } from '@/app/lib/api';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
+import MarkdownEditor from './MarkdownEditor';
+import ArticleList, { ArticleItem } from './ArticleList';
+import PromptList from '@/app/components/PromptList';
 
 const defaultPromptStyle = "质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀";
+
+interface Message {
+  role?: string;
+  content?: string;
+}
 
 export default function WritingAssistant() {
   const [prompt, setPrompt] = useState<string>(defaultPromptStyle);
@@ -14,13 +20,17 @@ export default function WritingAssistant() {
   const [topic, setTopic] = useState<string>('儿时赶海');
   const [keywords, setKeywords] = useState<string>('浙江海边、小时候、渔村、温暖、质朴');
   const [wordCount, setWordCount] = useState<number>(800);
+  const [articles, setArticles] = useState<string[]>([]);
 
-  // API 设置状态
   const { apiConfig } = useApiSettings();
 
   const notOpenAIKey = useMemo(() => {    
     return apiConfig.apiProvider !== 'ollama' && !apiConfig.apiKey;
   }, [apiConfig]);
+  
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   
   const [output, setOutput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -36,52 +46,35 @@ export default function WritingAssistant() {
     setIsLoading(true);
     setError(null);
     setApiResponseDetails(null);
-    setOutput('');
 
-    try {
-      // 检查 API 密钥
-      if (notOpenAIKey) {
-        throw new Error(`使用 ${apiConfig.apiProvider === 'openai' ? 'OpenAI' : '自定义'} API 需要提供有效的 API 密钥`);
-      }
+    const userMessage = [
+      useCustomPrompt && prompt ? { role: 'system', content: prompt } : {},
+      articles.length ? { role: 'user', content: articles.join('') } : {}, 
+      output ? { role: 'user', content: output } : {},
+      { role: 'user', content: `为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。关键词：${keywords}，不需要任何解释` }
+    ];
+    const newMessages = userMessage.filter(msg => msg.content);
+    setMessages(newMessages);
 
-      // Prepare the request
-      const request: WritingRequest = {
-        llmApiKey: apiConfig.apiKey,
-        llmApiUrl: apiConfig.apiUrl,
-        model: apiConfig.model,
-        topic,
-        keywords: keywords.split('、'),
-        wordCount,
-        ...(useCustomPrompt && { prompt }),
-      };
+    try {      
+      const translatedPrompt = await generate({
+          ...apiConfig,
+          model: 'gemini-2.5-pro',
+          messages: newMessages,
+          temperature: 0.7,
+          handler(message) {
+            setIsLoading(false);
+            setOutput(message);
+          }
+      });
 
-      // 显示请求开始信息
-      console.log(`开始请求 ${apiConfig.apiProvider} API，使用模型: ${apiConfig.model}...`);
-      
-      // Generate content
-      const response = await generateContent(request);
-      
-      if (response.error) {
-        setError(response.error);
-        setApiResponseDetails('请查看浏览器控制台以获取更多错误详情。');
-      } else if (!response.content || response.content.trim() === '') {
-        setError('API 返回了空内容。这可能是由于 API 响应格式不符合预期。');
-        setApiResponseDetails('请尝试切换 API 提供商或检查 API 密钥和 URL 是否正确。');
-      } else {
-        setOutput(response.content);
+      if (translatedPrompt.content) {
+        setOutput(translatedPrompt.content);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '生成内容时发生未知错误';
-      setError(errorMessage);
-      
-      // 添加更多帮助信息
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('网络')) {
-        setApiResponseDetails('这可能是由于网络连接问题或 CORS 限制导致的。请确保您的网络连接稳定，并且 API 服务允许从您的网站发出请求。');
-      } else if (errorMessage.includes('认证') || errorMessage.includes('授权') || errorMessage.includes('auth') || errorMessage.includes('key')) {
-        setApiResponseDetails('这可能是由于 API 密钥不正确或已过期。请检查您的 API 密钥并确保它有效。');
-      } else {
-        setApiResponseDetails('请检查浏览器控制台以获取更多错误详情，或尝试使用不同的 API 提供商。');
-      }
+    } catch (error) {
+      setMessages(messages);
+      setError((error as Error).message);
+      setApiResponseDetails((error as Error).message);
     } finally {
       setIsLoading(false);
     }
@@ -89,13 +82,36 @@ export default function WritingAssistant() {
 
   const handleExport = () => {
     if (output) {
-      exportToMarkdown(output);
+      exportToMarkdown(topic, output);
     }
+  };
+
+  const handleExportConversation = () => {
+    if (messages.length > 0) {
+      const conversationContent = messages
+        .map(msg => msg.content)
+        .join('\\n\\n---\\n\\n');
+      if (conversationContent) {
+        exportToMarkdown(`${topic}(对话)`, conversationContent);
+      }
+    }
+  };
+
+  const exportArticle = (article: ArticleItem) => {
+    setOutput(article.content);
+  };
+
+  const onSelectPrompt = (prompt: string) => {
+    setPrompt(prompt);
+    setUseCustomPrompt(true);
   };
 
   return (
     <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
       <div>
+        <PromptList onSelectPrompt={onSelectPrompt} group="文章" />
+
+        <ArticleList setArticles={setArticles} exportArticle={exportArticle} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
@@ -212,15 +228,19 @@ export default function WritingAssistant() {
                       </span>
                     ) : '生成内容'}
                   </button>
-                  {/* <a
-                    href="/grok"
-                    className="bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 py-2 px-4 rounded-md font-medium transition duration-150 ease-in-out flex items-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
-                    </svg>
-                    API 测试页面
-                  </a> */}
+                  
+                  {messages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessages([]);
+                        setOutput('');
+                      }}
+                      className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-2 px-4 rounded-md font-medium transition duration-150 ease-in-out transform hover:scale-105 shadow-md"
+                    >
+                      清空对话
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
@@ -237,15 +257,28 @@ export default function WritingAssistant() {
                   生成结果
                 </h2>
                 {output && (
-                  <button
-                    onClick={handleExport}
-                    className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-4 rounded-md text-sm flex items-center transition duration-150 ease-in-out shadow-sm"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    导出 Markdown
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleExport}
+                      className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-4 rounded-md text-sm flex items-center transition duration-150 ease-in-out shadow-sm"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      导出当前
+                    </button>
+                    {messages.length > 0 && (
+                      <button
+                        onClick={handleExportConversation}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white py-1.5 px-4 rounded-md text-sm flex items-center transition duration-150 ease-in-out shadow-sm"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        导出对话
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               
@@ -276,7 +309,18 @@ export default function WritingAssistant() {
                   <div className="h-full rounded-lg">
                     <MarkdownEditor 
                       initialContent={output} 
-                      onContentChange={setOutput} 
+                      onContentChange={(content) => {
+                        setOutput(content);
+                        // Update the last assistant message in the conversation if needed
+                        if (messagesRef.current.length > 0) {
+                          const lastMessage = messagesRef.current[messagesRef.current.length - 1];
+                          if (lastMessage.role === 'assistant') {
+                            const updatedMessages = [...messagesRef.current];
+                            updatedMessages[updatedMessages.length - 1] = { ...lastMessage, content };
+                            setMessages(updatedMessages);
+                          }
+                        }
+                      }} 
                     />
                   </div>
                 )}

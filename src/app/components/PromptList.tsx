@@ -12,11 +12,12 @@ interface PromptItem {
 }
 
 interface PromptListProps {
-  onSelectPrompt: (prompt: string) => void;
-  currentPrompt: string;
+  onSelectPrompt?: (prompt: string) => void;
+  currentPrompt?: string;
+  group?: string;
 }
 
-export default function PromptList({ onSelectPrompt, currentPrompt }: PromptListProps) {
+export default function PromptList({ onSelectPrompt = () => {}, currentPrompt = '', group = '全部' }: PromptListProps) {
   const [isShow, setIsShow] = useState(false);
   const [newPrompt, setNewPrompt] = useState('');
   const [newTitle, setNewTitle] = useState('');
@@ -25,7 +26,7 @@ export default function PromptList({ onSelectPrompt, currentPrompt }: PromptList
   const [editContent, setEditContent] = useState('');
   const [editGroup, setEditGroup] = useState('');
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState('全部');
+  const [selectedGroup, setSelectedGroup] = useState(group);
   const pathJson = 'tmp/prompt.json';
 
   const getGroups = () => {

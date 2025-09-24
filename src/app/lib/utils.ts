@@ -1,6 +1,6 @@
 export { default as cn } from 'classnames';
 
-export function exportToMarkdown(content: string): void {
+export function exportToMarkdown(name: string, content: string): void {
     // Create a blob with the content
     const blob = new Blob([content], { type: 'text/markdown' });
 
@@ -8,7 +8,7 @@ export function exportToMarkdown(content: string): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `writing_${new Date().toISOString().slice(0, 10)}.md`;
+    a.download = `${name}.md`;
 
     // Trigger download
     document.body.appendChild(a);

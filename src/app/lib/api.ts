@@ -1,7 +1,7 @@
 "use client";
 
 import { generateDiffMarkup } from "./utils";
-import { GenerateRequest, WritingRequest, ApiResponse, PolishRequest, PolishResponse, OcrRequest, OcrResponse } from './types';
+import { GenerateRequest, ApiResponse, PolishRequest, PolishResponse, OcrRequest, OcrResponse } from './types';
 
 export * from './utils';
 
@@ -140,38 +140,6 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
   }
 }
 
-export async function generateContent(request: WritingRequest): Promise<ApiResponse> {
-  try {
-    const { prompt, topic, keywords, wordCount, llmApiUrl, llmApiKey, model } = request;
-    
-    // Format the prompt template
-    const promptTemplate = formatPromptTemplate(topic, keywords, wordCount, prompt);
-
-    const data = await generate({
-      apiUrl: llmApiUrl,
-      apiKey: llmApiKey,
-      model: model || 'gpt-4',
-      prompt: promptTemplate,
-      messages: [
-        {
-          role: 'user',
-          content: promptTemplate
-        }
-      ],
-      temperature: 0.7,
-      stream: false
-    })
-    
-    return data;
-  } catch (error) {
-    console.error('生成内容错误:', error);
-    return {
-      content: '',
-      error: error instanceof Error ? error.message : '未知错误'
-    };
-  }
-}
-
 export async function generateOcr(request: OcrRequest): Promise<OcrResponse> {
   try {
     const { file, apiUrl, apiKey, model } = request;
@@ -223,23 +191,6 @@ export async function generateOcr(request: OcrRequest): Promise<OcrResponse> {
       error: error instanceof Error ? error.message : '未知错误'
     };
   }
-}
-
-export function formatPromptTemplate(
-  topic: string, 
-  keywords: string[], 
-  wordCount: number,
-  prompt?: string
-): string {
-  // Format the keywords as a comma-separated list
-  const keywordsStr = keywords.join('、');
-  
-  // Construct the complete prompt
-  return `${prompt || ''}
-
----
-遵循以上风格为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。
-关键词：${keywordsStr}，不需要任何解释`;
 }
 
 // 文章润色API
