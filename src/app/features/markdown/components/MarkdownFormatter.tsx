@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   FaBold, FaItalic, FaListUl, FaListOl, FaQuoteLeft, FaLink, FaImage,
   FaCode, FaFileCode, FaTable, FaMinus, FaUndo, FaQuestionCircle,
-  FaEdit, FaEye
+  FaEdit, FaEye, FaFileExport, FaCopy,
+  FaUpload
 } from 'react-icons/fa';
 import PromptList from '@/app/components/PromptList';
+import { exportToMarkdown } from '@/app/lib/utils';
 
 const defaultMarkdownContent = `# Markdown Formatter
 This is a simple markdown editor.
@@ -75,6 +77,27 @@ export default function MarkdownFormatter() {
     };
   }, []); // Empty dependency array means this runs once on mount
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/file-upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'File upload failed');
+      }
+      
+      const data = await response.json();
+      setMarkdown(data.text);
+  };
+
   const copyToClipboard = async () => {
     if (previewRef.current) {
       try {
@@ -87,16 +110,9 @@ export default function MarkdownFormatter() {
     }
   };
 
-  const copyTextToClipboard = async () => {
-    if (previewRef.current) {
-      try {
-        await navigator.clipboard.writeText(previewRef.current.innerText);
-        alert('已复制纯文本到剪贴板');
-      } catch (err) {
-        console.error('无法复制内容: ', err);
-        alert('复制失败，请手动复制');
-      }
-    }
+  const exportTextToMarkdown = () => {
+    const name = markdown.slice(0, 10);
+    exportToMarkdown(name, markdown);
   };
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -292,10 +308,19 @@ export default function MarkdownFormatter() {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="md:w-1/2 space-y-4">
               <div className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col h-full">
-                <h3 className="text-lg font-medium mb-3 flex items-center text-gray-800">
-                  <FaEdit className="mr-2 text-blue-600" />
-                  Markdown 编辑
-                </h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-medium flex items-center text-gray-800">
+                    <FaEdit className="mr-2 text-green-600" />
+                    Markdown 编辑
+                  </h3>
+                  <div className='flex gap-2'>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200">
+                      <FaUpload /> 上传
+                    </button>
+
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                  </div>
+                </div>
 
                 <div className="mb-2 flex flex-wrap gap-1">
                   <button type="button" onClick={() => insertMarkdown('heading1')} className="p-1.5 text-gray-700 hover:bg-gray-100 rounded" title="一级标题"><span className="font-bold text-base">H1</span></button>
@@ -364,9 +389,13 @@ export default function MarkdownFormatter() {
                     <FaEye className="mr-2 text-green-600" />
                     预览
                   </h3>
-                  <div className='flex gap-4'>
-                    <button onClick={copyToClipboard} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium">复制 HTML</button>
-                    <button onClick={copyTextToClipboard} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium">复制文本</button>
+                  <div className='flex gap-2'>
+                    <button onClick={copyToClipboard} className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200">
+                      <FaCopy /> 复制格式
+                    </button>
+                    <button onClick={exportTextToMarkdown} className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200">
+                      <FaFileExport /> 导出
+                    </button>
                   </div>
                 </div>
                 <div 
