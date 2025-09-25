@@ -462,23 +462,19 @@ export default function AudioEditorPage() {
         reader.onerror = error => reject(error);
       });
 
-      const prompt = `You're a professional audio transcription expert. I'll provide a Base64-encoded audio file. Analyze it carefully and transcribe it into text, marking the start and end time of each sentence. The JSON array MUST include the following keys: "start": Start time (seconds/number), "end": End time (seconds/number), "text": audio text. The audio is approximately ${totalTime} seconds long. Ensure: 1. Timestamps accurately reflect sentence positions. 2. Segments cover the entire audio (0 to end). 3. No overlapping between adjacent segments. 4. Text matches the audio content. 5. Simplified Chinese priority. Ensure the output is ONLY a valid JSON object, starting with { and ending with }. Do not include any explanatory text before or after the JSON.`;
+      const prompt = `请将这段音频转换成字幕，只输出srt格式，不需要任何解释`;
       const messages = [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: audioBase64 } }] }];
 
       const data = await generate({
         ...apiConfig,
+        model: 'gemini-2.5-flash-lite',
         messages,
-        temperature: 0.3,
-        response_format: { type: "json_object" }
+        temperature: 0,
       })
-      const resultText = data.content || data.error || '';
-      const parsedResult = JSON.parse(resultText);      
-      if (Array.isArray(parsedResult)) {
-        setSubtitles(parsedResult.map(seg => ({ ...seg, text: seg.text.trim() })));
-        setFullTranscript(resultText);
-      } else {
-        throw new Error('API返回的JSON格式不符合预期。');
-      }
+      const resultText = (data.content || data.error || '').replace('srt', '');      
+      const srtFileObj = new File([resultText], 'subtitles.srt', { type: 'text/srt' });
+
+      processSubtitleFile(srtFileObj);
     } catch (error) {
       console.error('生成字幕时出错:', error);
       setSubtitles([]);
