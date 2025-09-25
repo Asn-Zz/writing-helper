@@ -8,6 +8,7 @@ import {
   FaCode, FaFileCode, FaTable, FaMinus, FaUndo, FaQuestionCircle,
   FaEdit, FaEye
 } from 'react-icons/fa';
+import PromptList from '@/app/components/PromptList';
 
 const defaultMarkdownContent = `# Markdown Formatter
 This is a simple markdown editor.
@@ -284,6 +285,8 @@ export default function MarkdownFormatter() {
 
   return (
     <div className="markdown-formatter">
+      <PromptList currentPrompt={markdown} onSelectPrompt={setMarkdown} />
+
       <div className="p-0">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row gap-6">
@@ -344,13 +347,12 @@ export default function MarkdownFormatter() {
                 <textarea
                   id="markdown-editor"
                   ref={textareaRef}
-                  className="w-full flex-1 p-3 border border-gray-300 rounded-md font-mono text-sm"
+                  className="w-full flex-1 min-h-[400px] p-3 border border-gray-300 rounded-md font-mono text-[14px]"
                   value={markdown}
                   onChange={(e) => {
                     saveHistory(markdown);
                     setMarkdown(e.target.value);
                   }}
-                  style={{ overflow: 'hidden', resize: 'none' }}
                 />
               </div>
             </div>
@@ -369,7 +371,7 @@ export default function MarkdownFormatter() {
                 </div>
                 <div 
                   ref={previewRef}
-                  className="markdown-preview"
+                  className="markdown-preview max-h-screen overflow-y-auto"
                 >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {markdown}
