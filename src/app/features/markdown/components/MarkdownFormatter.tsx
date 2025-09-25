@@ -39,17 +39,20 @@ export default function MarkdownFormatter() {
 
     const css = `
       .markdown-preview {
+        flex: 1;
+        overflow-y: scroll;
         font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Hiragino Sans GB, Microsoft YaHei UI, Microsoft YaHei, Arial, sans-serif;
         color: #333;
+        font-size: 14px;
         line-height: 1.75;
         background: #fff;
         padding: 16px;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
       }
-      .markdown-preview h1 { font-size: 24px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }
-      .markdown-preview h2 { font-size: 20px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px; }
-      .markdown-preview h3 { font-size: 18px; font-weight: bold; margin-top: 15px; }
+      .markdown-preview h1 { font-size: 24px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+      .markdown-preview h2 { font-size: 20px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+      .markdown-preview h3 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
       .markdown-preview p { margin: 10px 0; line-height: 1.75; }
       .markdown-preview a { color: #0366d6; text-decoration: none; }
       .markdown-preview code { background-color: rgba(27,31,35,.05); border-radius: 3px; font-size: 85%; margin: 0; padding: 0.2em 0.4em; }
@@ -285,13 +288,13 @@ export default function MarkdownFormatter() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="md:w-1/2 space-y-4">
-              <div className="border border-gray-200 rounded-lg p-4 bg-white">
+              <div className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col h-full">
                 <h3 className="text-lg font-medium mb-3 flex items-center text-gray-800">
                   <FaEdit className="mr-2 text-blue-600" />
                   Markdown 编辑
                 </h3>
 
-                <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-200 pb-2">
+                <div className="mb-2 flex flex-wrap gap-1">
                   <button type="button" onClick={() => insertMarkdown('heading1')} className="p-1.5 text-gray-700 hover:bg-gray-100 rounded" title="一级标题"><span className="font-bold text-base">H1</span></button>
                   <button type="button" onClick={() => insertMarkdown('heading2')} className="p-1.5 text-gray-700 hover:bg-gray-100 rounded" title="二级标题"><span className="font-bold text-base">H2</span></button>
                   <button type="button" onClick={() => insertMarkdown('heading3')} className="p-1.5 text-gray-700 hover:bg-gray-100 rounded" title="三级标题"><span className="font-bold text-base">H3</span></button>
@@ -341,7 +344,7 @@ export default function MarkdownFormatter() {
                 <textarea
                   id="markdown-editor"
                   ref={textareaRef}
-                  className="w-full min-h-[400px] p-3 border rounded-md font-mono text-sm"
+                  className="w-full flex-1 p-3 border border-gray-300 rounded-md font-mono text-sm"
                   value={markdown}
                   onChange={(e) => {
                     saveHistory(markdown);
@@ -353,7 +356,7 @@ export default function MarkdownFormatter() {
             </div>
 
             <div className="md:w-1/2 space-y-4">
-              <div className="border border-gray-200 rounded-lg p-4 bg-white">
+              <div className="border border-gray-200 rounded-lg p-4 bg-white h-full relative flex flex-col">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-lg font-medium flex items-center text-gray-800">
                     <FaEye className="mr-2 text-green-600" />
