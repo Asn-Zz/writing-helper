@@ -41,11 +41,13 @@ export default function WritingAssistant() {
     setKeywords(e.target.value);
   };
 
+  const [time, setTime] = useState<string>('');
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     setApiResponseDetails(null);
+    setTime('');
 
     const userMessage = [
       useCustomPrompt && prompt ? { role: 'system', content: prompt } : {},
@@ -57,19 +59,26 @@ export default function WritingAssistant() {
     setMessages(newMessages);
 
     try {      
+      const startTime = new Date();
       const translatedPrompt = await generate({
           ...apiConfig,
-          // model: 'gemini-2.5-pro',
+          model: 'gemini-2.5-pro',
           messages: newMessages,
           temperature: 0.7,
           handler(message) {
             setIsLoading(false);
             setOutput(message);
+
+            const previewElm = document.getElementById('preview');
+            if (previewElm) {
+              previewElm.scrollTo({ top: previewElm.scrollHeight, behavior: 'smooth' });
+            }
           }
       });
 
       if (translatedPrompt.content) {
         setOutput(translatedPrompt.content);
+        setTime(`耗时: ${(new Date().getTime() - startTime.getTime()) / 1000} s`);
       }
     } catch (error) {
       setMessages(messages);
@@ -107,13 +116,13 @@ export default function WritingAssistant() {
   };
 
   return (
-    <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="h-full">
       <div>
         <PromptList onSelectPrompt={onSelectPrompt} group="文章" />
 
         <ArticleList setArticles={setArticles} exportArticle={exportArticle} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Input Section */}
           <div className="space-y-6">
             <div className="bg-white shadow-sm rounded-xl p-6 border border-gray-200">
@@ -322,6 +331,11 @@ export default function WritingAssistant() {
                         }
                       }} 
                     />
+
+                    <p className='text-xs text-gray-500 pt-1 flex gap-2'>
+                      {output && <span>{output.length} 字</span>}
+                      {time && <span>{time}</span>}
+                    </p>
                   </div>
                 )}
               </div>

@@ -37,7 +37,7 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
   };
 
   return (
-    <div className="border border-gray-200 rounded-md overflow-hidden h-full">
+    <div className="border border-gray-200 rounded-md overflow-hidden h-full text-sm">
       <div className="flex justify-between items-center bg-gray-50 p-2">
         <h3 className="text-sm font-medium">文章内容</h3>
         <button
@@ -72,7 +72,7 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
           placeholder="在此输入Markdown内容..."
         />
       ) : (
-        <div className="prose prose-sm px-4 pb-10 h-full overflow-scroll bg-white">
+        <div className="prose prose-sm px-4 pb-10 h-full overflow-scroll bg-white" id='preview'>
           {content ? (
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
