@@ -77,10 +77,11 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
               components={{
-                h1: (props) => <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b" {...props} />,
+                h1: (props) => <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b border-gray-200" {...props} />,
                 h2: (props) => <h2 className="text-xl font-bold mt-5 mb-3" {...props} />,
                 h3: (props) => <h3 className="text-lg font-bold mt-4 mb-2" {...props} />,
                 p: (props) => <p className="my-3" {...props} />,
+                hr: (props) => <hr className="border-gray-200" {...props} />,
                 ul: (props) => <ul className="list-disc pl-5 my-3" {...props} />,
                 ol: (props) => <ol className="list-decimal pl-5 my-3" {...props} />,
                 li: (props) => <li className="my-1" {...props} />,

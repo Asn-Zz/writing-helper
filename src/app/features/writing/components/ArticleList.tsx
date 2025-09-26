@@ -1,6 +1,7 @@
-import React from 'react';
-import { FaEdit, FaFileExport, FaLink, FaTrash, FaUpload, FaFolder, FaPlus } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaEdit, FaFileExport, FaLink, FaTrash, FaUpload, FaFolder, FaPlus, FaAngleUp, FaAngleDown, FaSpinner } from 'react-icons/fa';
 import { useLocalStorage } from '@/app/lib/store';
+import { getIsAuthed } from '@/app/lib/auth';
 
 export interface ArticleItem {
     id: string;
@@ -20,6 +21,7 @@ interface ArticleListProps {
 }
 
 function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleListProps) {
+    const [isShow, setIsShow] = React.useState(false);
     const [articles, setArticles] = useLocalStorage<ArticleItem[]>('writing_articles', []);
     const [groups, setGroups] = useLocalStorage<GroupItem[]>('writing_groups', [{ id: '', name: '默认' }]);
     const [selectedArticles, setSelectedArticles] = React.useState<ArticleItem[]>([]);
@@ -184,52 +186,119 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
         setEditingGroupId(null);
     };
 
+    const clearArticles = () => {
+        if (window.confirm('确定要清空参考文章吗？')) {
+            setArticles([]);
+            setGroups([{ id: '', name: '默认' }]);
+        }
+    };
+
+    const pathJson = 'tmp/articles.json';
+    const [loading, setLoading] = useState(false);  
+    const syncArticles = async () => {
+        if (loading) return;
+        setLoading(true);
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CDN_URL}/${pathJson}`);
+            const data = await response.json();
+            setArticles(data);
+
+            const groupNames = new Set(data.map((article: ArticleItem) => article.groupId));
+            const groups = Array.from(groupNames).sort().map((id, index) => ({ id, name: id ? `分组 ${index}` : '默认' })) as GroupItem[];
+            setGroups(groups);
+        } catch (error) {
+            console.error('Failed to sync articles:', error);
+        }
+
+        setLoading(false);
+    }
+
+    const uploadArticles = async () => {
+        if (getIsAuthed() && window.confirm('确定要上传参考文章吗？')) {
+            const formData = new FormData();
+            const file = new File([JSON.stringify(articles)], pathJson.split('/').pop() || '', { type: 'application/json' });
+            formData.append('file', file);
+            const response = await fetch(`/api/cos-upload/${pathJson}`, {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to upload json: ${response.status} ${response.statusText}`);
+            }
+    
+            syncArticles();
+        }
+    };
+
     return (
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center">
                 <div className="text-lg font-semibold text-gray-800">
                     参考文章
+                    {isShow && articles.length > 0 ? (
+                        <div className="inline-flex gap-2 ml-2">
+                            <span className="text-xs text-red-500 cursor-pointer" onClick={clearArticles}>(清空)</span>
+                            <span className="text-xs text-blue-500 cursor-pointer" onClick={syncArticles}>(同步)</span>
+                            <span className="text-xs text-blue-500 cursor-pointer" onClick={uploadArticles}>(上传)</span>
+                        </div>
+                    ): (
+                        <div className="inline-flex gap-2 ml-2">
+                            <span className="text-xs text-blue-500 cursor-pointer">({articles.length})</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        className="flex items-center gap-1 text-sm bg-purple-100 text-purple-700 py-1 px-2 rounded-md hover:bg-purple-200 disabled:opacity-50"
-                        onClick={addGroup}
-                    >
-                        <FaPlus size={12} />
-                        新建分组
-                    </button>
-                    
-                    <a href="https://changfengbox.top/wechat" target="_blank" className="flex gap-2">
-                        <button
-                            className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200 disabled:opacity-50"
-                        >
-                            <FaLink size={12} />
-                            文章下载
-                        </button>
-                    </a>
+                    {isShow ? (
+                        <>
+                            <button
+                                className="flex items-center gap-1 text-sm bg-purple-100 text-purple-700 py-1 px-2 rounded-md hover:bg-purple-200 disabled:opacity-50"
+                                onClick={addGroup}
+                            >
+                                <FaPlus size={12} />新建分组
+                            </button>
 
-                    <div className="flex gap-2">
-                        <button
-                            className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200 disabled:opacity-50"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <FaUpload size={12} />
-                            上传
-                        </button>
-                        <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
-                    </div>
+                            <button
+                                className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200 disabled:opacity-50"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <FaUpload size={12} />上传文章
+                            </button>
+                            <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
+                        </>
+                    ) : (
+                        <a href="https://changfengbox.top/wechat" target="_blank" className="flex gap-2">
+                            <button className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200 disabled:opacity-50">
+                                <FaLink size={12} />下载文章
+                            </button>
+                        </a>
+                    )}
+
+                    <button
+                        onClick={() => setIsShow(!isShow)}
+                        className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200"
+                    >
+                        {isShow ? <FaAngleUp size={14} /> : <FaAngleDown size={14} />}
+                        {isShow ? '收起' : '展开'}
+                    </button>
                 </div>
             </div>
 
+            {loading && (
+                <div className="flex justify-center items-center gap-2 h-50 text-blue-500 text-sm border border-gray-200 rounded-md my-3">
+                    <FaSpinner className="animate-spin" size={20} />加载中...
+                </div>
+            )}
+
             {/* Render groups first */}
-            {groups.map((group) => {
+            {isShow && groups.map((group) => {
                 const groupArticles = articles.filter(article => article.groupId === group.id);
                 const styleArticle = groupArticles.find(article => article.title.startsWith(group.name));
 
                 return (
                     <div 
                         key={group.id} 
-                        className="mb-4 border border-gray-200 rounded-md p-3"
+                        className="mt-4 border border-gray-200 rounded-md p-3"
                     >
                         <div 
                             className="flex justify-between items-center mb-2"
@@ -411,6 +480,10 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
                     </div>
                 );
             })}
+{/* 
+            <p onClick={() => setIsShow(!isShow)} className='text-xs cursor-pointer text-gray-500 text-center'>
+                {isShow ? '隐藏' : '展开'}
+            </p> */}
 
             {articles.length === 0 && groups.length === 0 && (
                 <div className="text-center text-gray-500 py-4">
