@@ -156,7 +156,7 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
     const addGroup = () => {
         const newGroup: GroupItem = {
             id: 'group_' + Date.now().toString(),
-            name: `分组 ${groups.length + 1}`
+            name: `分组 ${groups.length}`
         };
         setGroups([...groups, newGroup]);
     };
@@ -375,7 +375,7 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
                             </button>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-70 overflow-y-auto py-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-70 overflow-y-auto">
                             {groupArticles.map((article) => (
                                 <div
                                     key={article.id}
