@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
             throw new Error('unsupported file');
         }
 
-        return NextResponse.json({ text: compressText(text) });
+        return NextResponse.json({ text });
     } catch (error: any) {
         console.error('File processing error:', error);
         return NextResponse.json({ error: `File processing failed: ${error.message || 'Unable to read file content'}` }, { status: 500 });
