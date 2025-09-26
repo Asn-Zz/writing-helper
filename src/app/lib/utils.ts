@@ -3,12 +3,13 @@ export { default as cn } from 'classnames';
 export function exportToMarkdown(name: string, content: string): void {
     // Create a blob with the content
     const blob = new Blob([content], { type: 'text/markdown' });
+    const defaultName =  `writing-${new Date().toISOString().split('T')[0]}`;
 
     // Create a download link
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${name}.md`;
+    a.download = `${name || defaultName}.md`;
 
     // Trigger download
     document.body.appendChild(a);

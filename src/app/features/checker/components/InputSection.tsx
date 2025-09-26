@@ -154,11 +154,6 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
         if (!inputText.trim()) return;
         navigator.clipboard.writeText(inputText).then(() => alert('文本已复制!')).catch(() => alert('复制失败'));
     }, [inputText]);
-
-    const compressText = (inputText: string) => {
-        if (!inputText.trim()) return;
-        setInputText(inputText.replace(/((\r\n|\r|\n)){2,}/g, '\n'));
-    };
     
     const loadExample = useCallback(() => {
         clearInput();
@@ -254,7 +249,7 @@ ${thesaurusList.length > 0 ? `自定义词库：${thesaurusList.map(t => t.origi
 
             <FileUpload
                 apiConfig={apiConfig}
-                onTextExtracted={compressText}
+                onTextExtracted={setInputText}
                 setApiError={setApiError}
                 setPdfPreviewUrl={setPdfPreviewUrl}
                 clearInput={clearInput}

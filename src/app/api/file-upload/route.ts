@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mammoth from 'mammoth';
 
+const compressText = (inputText: string) => {
+    if (!inputText.trim()) return;
+    return inputText.replace(/((\r\n|\r|\n)){2,}/g, '');
+};
+
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
@@ -28,7 +33,7 @@ export async function POST(req: NextRequest) {
             throw new Error('unsupported file');
         }
 
-        return NextResponse.json({ text });
+        return NextResponse.json({ text: compressText(text) });
     } catch (error: any) {
         console.error('File processing error:', error);
         return NextResponse.json({ error: `File processing failed: ${error.message || 'Unable to read file content'}` }, { status: 500 });

@@ -53,7 +53,7 @@ export default function WritingAssistant() {
       useCustomPrompt && prompt ? { role: 'system', content: prompt } : {},
       articles.length ? { role: 'user', content: articles.join('') } : {}, 
       output ? { role: 'user', content: output } : {},
-      { role: 'user', content: `为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。关键词：${keywords}，不需要任何解释` }
+      topic && wordCount ? { role: 'user', content: `为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。关键词：${keywords}，不需要任何解释` } : {}
     ];
     const newMessages = userMessage.filter(msg => msg.content);
     setMessages(newMessages);
@@ -154,7 +154,6 @@ export default function WritingAssistant() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
-                      required
                     />
                   </div>
 
@@ -167,7 +166,6 @@ export default function WritingAssistant() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={keywords}
                       onChange={handleKeywordsChange}
-                      required
                     />
                   </div>
 
@@ -182,7 +180,6 @@ export default function WritingAssistant() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={wordCount}
                       onChange={(e) => setWordCount(Number(e.target.value))}
-                      required
                     />
                   </div>
                 </div>
@@ -238,7 +235,7 @@ export default function WritingAssistant() {
                     ) : '生成内容'}
                   </button>
                   
-                  {messages.length > 0 && (
+                  {output.length > 0 && (
                     <button
                       type="button"
                       onClick={() => {

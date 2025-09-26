@@ -1,11 +1,17 @@
 import React from 'react';
-import { FaEdit, FaFileExport, FaLink, FaTrash, FaUpload } from 'react-icons/fa';
+import { FaEdit, FaFileExport, FaLink, FaTrash, FaUpload, FaFolder, FaPlus } from 'react-icons/fa';
 import { useLocalStorage } from '@/app/lib/store';
 
 export interface ArticleItem {
     id: string;
     title: string;
     content: string;
+    groupId: string;
+}
+
+export interface GroupItem {
+    id: string;
+    name: string;
 }
 
 interface ArticleListProps {
@@ -15,15 +21,25 @@ interface ArticleListProps {
 
 function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleListProps) {
     const [articles, setArticles] = useLocalStorage<ArticleItem[]>('writing_articles', []);
+    const [groups, setGroups] = useLocalStorage<GroupItem[]>('writing_groups', [{ id: '', name: '默认' }]);
     const [selectedArticles, setSelectedArticles] = React.useState<ArticleItem[]>([]);
     const [editingId, setEditingId] = React.useState<string | null>(null);
     const [editTitle, setEditTitle] = React.useState('');
     const [editContent, setEditContent] = React.useState('');
+    const [draggedItem, setDraggedItem] = React.useState<{id: string, type: 'article' | 'group'} | null>(null);
 
     const selectArticle = (article: ArticleItem) => {
         const newSelectedArticles = selectedArticles.includes(article) ? selectedArticles.filter(a => a.id !== article.id) : [...selectedArticles, article];
         setSelectedArticles(newSelectedArticles);
         setArticlesProp([...newSelectedArticles.map(a => a.title + '\n' + a.content)]);
+    };
+
+    const selectGroup = (group: GroupItem, styleArticle: ArticleItem) => {        
+        const newSelectedArticles = articles.filter(a => a.groupId === group.id && a.id !== styleArticle.id);
+        setSelectedArticles(newSelectedArticles);
+        setArticlesProp([...newSelectedArticles.map(a => a.title + '\n' + a.content)]);
+
+        exportArticle(styleArticle);
     };
 
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -46,7 +62,8 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
             }
             
             const data = await response.json();
-            newArticles.push({ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title: file.name, content: data.text });
+            const item = { id: Date.now().toString(), groupId: '', title: file.name, content: data.text };
+            newArticles.push(item);
         }
 
         await Promise.all([...files].map(handleFile));
@@ -79,13 +96,109 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
         startEditing(article);
     };
 
+    const handleDragStart = (e: React.DragEvent, id: string, type: 'article' | 'group') => {
+        e.dataTransfer.setData('text/plain', id);
+        setDraggedItem({ id, type });
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent, targetId: string, targetType: 'article' | 'group') => {
+        e.preventDefault();
+
+        if (!draggedItem) return;
+
+        if (draggedItem.type === 'article' && targetType === 'article') {
+            const draggedArticle = articles.find(a => a.id === draggedItem.id);
+            const targetArticle = articles.find(a => a.id === targetId);
+            
+            if (draggedArticle && targetArticle) {
+                if (draggedArticle.groupId !== targetArticle.groupId) {
+                    const updatedArticles = articles.map(article => 
+                        article.id === draggedItem.id ? {...article, groupId: targetArticle.groupId} : article
+                    );
+                    setArticles(updatedArticles);
+                } 
+                else {
+                    // Create a copy of the articles array
+                    const newArticles = [...articles];
+                    const draggedIndex = newArticles.findIndex(a => a.id === draggedItem.id);
+                    const targetIndex = newArticles.findIndex(a => a.id === targetId);
+                    
+                    if (draggedIndex !== -1 && targetIndex !== -1) {
+                        const [movedArticle] = newArticles.splice(draggedIndex, 1);
+                        const adjustedTargetIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+                        
+                        newArticles.splice(adjustedTargetIndex, 0, movedArticle);                        
+                        setArticles(newArticles);
+                    }
+                }
+            }
+        }
+        else if (draggedItem.type === 'article' && targetType === 'group') {
+            const updatedArticles = articles.map(article => 
+                article.id === draggedItem.id ? {...article, groupId: targetId} : article
+            );
+            setArticles(updatedArticles);
+        }
+        
+        setDraggedItem(null);
+    };
+
+    // Group functions
+    const [editingGroupId, setEditingGroupId] = React.useState<string | null>(null);
+    const [editGroupName, setEditGroupName] = React.useState('');
+
+    const addGroup = () => {
+        const newGroup: GroupItem = {
+            id: 'group_' + Date.now().toString(),
+            name: `分组 ${groups.length + 1}`
+        };
+        setGroups([...groups, newGroup]);
+    };
+
+    const deleteGroup = (id: string) => {
+        setGroups(groups.filter(group => group.id !== id));
+        setArticles(articles.map(article => 
+            article.groupId === id ? {...article, groupId: ''} : article
+        ));
+    };
+
+    const startEditingGroup = (group: GroupItem) => {
+        setEditingGroupId(group.id);
+        setEditGroupName(group.name);
+    };
+
+    const saveEditGroup = () => {
+        if (editingGroupId && editGroupName.trim()) {
+            setGroups(groups.map(group => 
+                group.id === editingGroupId ? {...group, name: editGroupName.trim()} : group
+            ));
+            setEditingGroupId(null);
+        }
+    };
+
+    const cancelEditGroup = () => {
+        setEditingGroupId(null);
+    };
+
     return (
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
                 <div className="text-lg font-semibold text-gray-800">
                     参考文章
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        className="flex items-center gap-1 text-sm bg-purple-100 text-purple-700 py-1 px-2 rounded-md hover:bg-purple-200 disabled:opacity-50"
+                        onClick={addGroup}
+                    >
+                        <FaPlus size={12} />
+                        新建分组
+                    </button>
+                    
                     <a href="https://changfengbox.top/wechat" target="_blank" className="flex gap-2">
                         <button
                             className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 py-1 px-2 rounded-md hover:bg-blue-200 disabled:opacity-50"
@@ -108,105 +221,202 @@ function ArticleList({ setArticles: setArticlesProp, exportArticle }: ArticleLis
                 </div>
             </div>
 
+            {/* Render groups first */}
+            {groups.map((group) => {
+                const groupArticles = articles.filter(article => article.groupId === group.id);
+                const styleArticle = groupArticles.find(article => article.title.startsWith(group.name));
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-70 overflow-y-auto py-2">
-                {articles.map((article) => (
-                    <div
-                        key={article.id}
-                        className={`border border-gray-200 rounded-md p-3 hover:border-blue-300 hover:shadow-sm transition-all relative group ${selectedArticles.includes(article) ? 'bg-blue-50' : ''}`}
-                        onClick={() => editingId !== article.id && selectArticle(article)}
+                return (
+                    <div 
+                        key={group.id} 
+                        className="mb-4 border border-gray-200 rounded-md p-3"
                     >
-                        {editingId === article.id ? (
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    value={editTitle}
-                                    onChange={(e) => setEditTitle(e.target.value)}
-                                    placeholder="标题"
-                                    className="w-full p-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                />
-                                <textarea
-                                    value={editContent}
-                                    onChange={(e) => setEditContent(e.target.value)}
-                                    placeholder="文章内容"
-                                    className="w-full p-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                    rows={3}
-                                />
-                                <div className="flex justify-end gap-1">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            saveEdit();
-                                        }}
-                                        className="text-xs bg-blue-500 text-white py-1 px-2 rounded hover:bg-blue-600"
-                                    >
-                                        保存
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            cancelEdit();
-                                        }}
-                                        className="text-xs bg-gray-500 text-white py-1 px-2 rounded hover:bg-gray-600"
-                                    >
-                                        取消
-                                    </button>
-                                </div>
+                        <div 
+                            className="flex justify-between items-center mb-2"
+                            draggable
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, group.id, 'group')}
+                        >
+                            <div className="flex items-center">
+                                <FaFolder className="text-yellow-500 mr-2" />
+                                {editingGroupId === group.id ? (
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="text"
+                                            value={editGroupName}
+                                            onChange={(e) => setEditGroupName(e.target.value)}
+                                            className="text-sm border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                saveEditGroup();
+                                            }}
+                                            className="text-xs bg-blue-500 text-white py-0.5 px-1.5 rounded hover:bg-blue-600"
+                                        >
+                                            保存
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                cancelEditGroup();
+                                            }}
+                                            className="text-xs bg-gray-500 text-white py-0.5 px-1.5 rounded hover:bg-gray-600"
+                                        >
+                                            取消
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <h3 
+                                            className="font-medium text-gray-800 cursor-pointer"
+                                            onClick={() => startEditingGroup(group)}
+                                        >
+                                            {group.name}
+                                        </h3>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditingGroup(group);
+                                            }}
+                                            className="text-blue-500 hover:text-blue-700 text-xs"
+                                        >
+                                            编辑
+                                        </button>
+                                        {styleArticle && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                selectGroup(group, styleArticle);
+                                            }}
+                                            className="text-blue-500 hover:text-blue-700 text-xs"
+                                        >
+                                            仿写
+                                        </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            <>
-                                <div className="flex justify-between items-start">
-                                    <h4 className="font-medium text-gray-900 text-sm mb-1 truncate" title={article.title}>
-                                        {article.title}
-                                    </h4>
-                                </div>
-                                <p
-                                    className="text-sm text-gray-700 cursor-pointer line-clamp-2"
-                                    onClick={() => selectArticle(article)}
-                                    title={article.content}
+                            <button 
+                                onClick={() => deleteGroup(group.id)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                                删除分组
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-70 overflow-y-auto py-1">
+                            {groupArticles.map((article) => (
+                                <div
+                                    key={article.id}
+                                    className={`border border-gray-200 rounded-md p-3 hover:border-blue-300 hover:shadow-sm transition-all relative group ${selectedArticles.includes(article) ? 'bg-blue-50' : ''}`}
+                                    onClick={() => editingId !== article.id && selectArticle(article)}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, article.id, 'article')}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, article.id, 'article')}
                                 >
-                                    {article.content}
-                                </p>
+                                    {editingId === article.id ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={editTitle}
+                                                onChange={(e) => setEditTitle(e.target.value)}
+                                                placeholder="标题"
+                                                className="w-full p-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                            <textarea
+                                                value={editContent}
+                                                onChange={(e) => setEditContent(e.target.value)}
+                                                placeholder="文章内容"
+                                                className="w-full p-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                rows={3}
+                                            />
+                                            <div className="flex justify-end gap-1">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        saveEdit();
+                                                    }}
+                                                    className="text-xs bg-blue-500 text-white py-1 px-2 rounded hover:bg-blue-600"
+                                                >
+                                                    保存
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        cancelEdit();
+                                                    }}
+                                                    className="text-xs bg-gray-500 text-white py-1 px-2 rounded hover:bg-gray-600"
+                                                >
+                                                    取消
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="font-medium text-gray-900 text-sm mb-1 truncate" title={article.title}>
+                                                    {article.title}
+                                                </h4>
+                                            </div>
+                                            <p
+                                                className="text-sm text-gray-700 cursor-pointer line-clamp-2"
+                                                onClick={() => selectArticle(article)}
+                                                title={article.content}
+                                            >
+                                                {article.content}
+                                            </p>
 
-                                <div className="absolute z-10 bottom-1 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditArticle(article);
-                                        }}
-                                        className="text-blue-500 hover:text-blue-700"
-                                        title="编辑"
-                                    >
-                                        <FaEdit size={12} />
-                                    </button>
+                                            <div className="absolute z-10 bottom-1 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditArticle(article);
+                                                    }}
+                                                    className="text-blue-500 hover:text-blue-700"
+                                                    title="编辑"
+                                                >
+                                                    <FaEdit size={12} />
+                                                </button>
 
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            exportArticle(article);
-                                        }}
-                                        className="text-blue-500 hover:text-blue-700"
-                                        title="导出"
-                                    >
-                                        <FaFileExport size={12} />
-                                    </button>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        exportArticle(article);
+                                                    }}
+                                                    className="text-blue-500 hover:text-blue-700"
+                                                    title="导出"
+                                                >
+                                                    <FaFileExport size={12} />
+                                                </button>
 
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteArticle(article.id);
-                                        }}
-                                        className="text-red-500 hover:text-red-700"
-                                        title="删除"
-                                    >
-                                        <FaTrash size={12} />
-                                    </button>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteArticle(article.id);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                    title="删除"
+                                                >
+                                                    <FaTrash size={12} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
-                            </>
-                        )}
+                            ))}
+                        </div>
                     </div>
-                ))}
-            </div>
+                );
+            })}
+
+            {articles.length === 0 && groups.length === 0 && (
+                <div className="text-center text-gray-500 py-4">
+                    暂无文章或分组，可以上传文件或创建新分组
+                </div>
+            )}
         </div>
     );
 }
