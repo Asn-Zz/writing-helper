@@ -29,7 +29,7 @@ export const featureLinks: NavLink[] = [
     href: '#production', 
     label: '内容生产', 
     children: [
-      { href: '/features/writing', label: '文章写作' },
+      // { href: '/features/writing', label: '文章写作' },
       { href: '/features/media-editor', label: '新媒体编辑' },
       { href: '/features/comment-editor', label: '评论编辑' },
       { href: '/features/image-editor', label: '图像编辑' },
