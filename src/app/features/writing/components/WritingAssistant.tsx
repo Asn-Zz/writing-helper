@@ -6,6 +6,8 @@ import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import MarkdownEditor from './MarkdownEditor';
 import ArticleList, { ArticleItem } from './ArticleList';
 import PromptList from '@/app/components/PromptList';
+import { FaMagic, FaSearch } from 'react-icons/fa';
+import { objectToQueryString } from '@/app/lib/utils';
 
 const defaultPromptStyle = "质朴平实的散文笔触，以赶海为线索串联起乡愁记忆与人文关怀";
 
@@ -42,6 +44,7 @@ export default function WritingAssistant() {
   };
 
   const [time, setTime] = useState<string>('');
+  const [lastOutput, setLastOutput] = useState<string>('');
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -57,6 +60,7 @@ export default function WritingAssistant() {
     ];
     const newMessages = userMessage.filter(msg => msg.content);
     setMessages(newMessages);
+    setLastOutput(output);
 
     try {      
       const startTime = new Date();
@@ -115,6 +119,31 @@ export default function WritingAssistant() {
     setUseCustomPrompt(true);
   };
 
+  const searchTopic = async () => {
+    if (!topic || isLoading) { return }
+    const payload = objectToQueryString({ model: 'searchgpt', token: process.env.NEXT_PUBLIC_POLLAI_KEY });
+
+    setIsLoading(true);
+    const response = await fetch(`https://text.pollinations.ai/${topic}?${payload}`);
+    const data = await response.text();
+    setOutput(data);
+    setIsLoading(false);
+  };
+
+  const generateKeyWords = async () => {
+    const inputText = output || topic || '';
+    const keywords = await generate({
+        ...apiConfig,
+        model: 'gemini-2.0-flash-exp',
+        messages: [{ role: 'user', content: `根据提供的主题或者内容给出文章3-5个关键词按、分割，不需要任何解释:\n${inputText}` }],
+        temperature: 0.7
+    });
+
+    if (keywords.content) {
+      setKeywords(keywords.content);
+    }
+  }
+
   return (
     <div className="h-full">
       <div>
@@ -149,24 +178,45 @@ export default function WritingAssistant() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       主题
                     </label>
-                    <input
-                      type="text"
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
-                    />
+                    <div className="flex items-start gap-2 text-sm">
+                      <input
+                        type="text"
+                        className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={searchTopic} 
+                        className="flex items-center gap-2 p-2 border border-gray-300 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                        disabled={isLoading || !topic}
+                      >
+                        <FaSearch /> 搜索
+                      </button>  
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       关键词（用、分隔）
                     </label>
-                    <input
-                      type="text"
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={keywords}
-                      onChange={handleKeywordsChange}
-                    />
+                    <div className="flex items-start gap-2 text-sm">
+                      <input
+                        type="text"
+                        className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={keywords}
+                        onChange={handleKeywordsChange}
+                      />
+
+                      <button 
+                        type="button" 
+                        onClick={generateKeyWords} 
+                        className="flex items-center gap-2 p-2 border border-gray-300 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                        disabled={isLoading || !keywords}
+                      >
+                        <FaMagic /> 自动
+                      </button>  
+                    </div>
                   </div>
 
                   <div>
@@ -238,13 +288,14 @@ export default function WritingAssistant() {
                   {output.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(event) => {
                         setMessages([]);
-                        setOutput('');
+                        setOutput(lastOutput);
+                        handleSubmit(event);
                       }}
                       className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-2 px-4 rounded-md font-medium transition duration-150 ease-in-out transform hover:scale-105 shadow-md"
                     >
-                      清空对话
+                      重新生成
                     </button>
                   )}
                 </div>
