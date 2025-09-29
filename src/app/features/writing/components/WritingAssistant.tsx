@@ -400,18 +400,7 @@ export default function WritingAssistant() {
                   <div className="absolute top-[10%] left-0 w-full h-[90%] rounded-lg p-6 pt-0">
                     <MarkdownEditor 
                       initialContent={output} 
-                      onContentChange={(content) => {
-                        setOutput(content);
-                        // Update the last assistant message in the conversation if needed
-                        if (messagesRef.current.length > 0) {
-                          const lastMessage = messagesRef.current[messagesRef.current.length - 1];
-                          if (lastMessage.role === 'assistant') {
-                            const updatedMessages = [...messagesRef.current];
-                            updatedMessages[updatedMessages.length - 1] = { ...lastMessage, content };
-                            setMessages(updatedMessages);
-                          }
-                        }
-                      }} 
+                      onContentChange={setOutput} 
                     />
 
                     <p className='text-xs text-gray-500 pt-1 flex gap-2'>
