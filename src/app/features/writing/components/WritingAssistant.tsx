@@ -36,6 +36,7 @@ export default function WritingAssistant() {
   messagesRef.current = messages;
   
   const [output, setOutput] = useState<string>('');
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function WritingAssistant() {
 
   const [time, setTime] = useState<string>('');
   const generateOutput = async (messages: Message[]) => {
+    setHasStarted(true);
     setIsLoading(true);
     setError(null);
     setApiResponseDetails(null);
@@ -59,8 +61,8 @@ export default function WritingAssistant() {
         messages,
         temperature: 0.7,
         handler(message) {
-          setIsLoading(false);
           setOutput(message);
+          setHasStarted(false);
 
           const previewElm = document.getElementById('preview');
           if (previewElm) {
@@ -72,6 +74,7 @@ export default function WritingAssistant() {
       if (translatedPrompt.content) {
         setOutput(translatedPrompt.content);
         setTime(`耗时: ${(new Date().getTime() - startTime.getTime()) / 1000} s`);
+        setHasStarted(false);
       }
     } catch (error) {
       setError((error as Error).message);
@@ -323,7 +326,7 @@ export default function WritingAssistant() {
                     ) : '生成内容'}
                   </button>
                   
-                  {output.length > 0 && (
+                  {time && (
                     <button
                       type="button"
                       onClick={handleReset}
@@ -388,7 +391,7 @@ export default function WritingAssistant() {
                   </div>
                 )}
                 
-                {isLoading ? (
+                {hasStarted ? (
                   <div className="flex justify-center items-center bg-gray-50 border border-gray-200 rounded-lg h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>

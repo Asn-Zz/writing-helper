@@ -5,7 +5,7 @@ import { GenerateRequest, ApiResponse, PolishRequest, PolishResponse, OcrRequest
 
 export * from './utils';
 
-export async function generate(request: GenerateRequest): Promise<ApiResponse> {
+export async function generate(request: GenerateRequest, retryCount = 3): Promise<ApiResponse> {
   try {
     const { apiUrl, apiKey, prompt, model, messages, handler, temperature = 0.7, ...rest } = request;
     const stream = request.stream ?? true;
@@ -36,13 +36,16 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
     }
     
     try {
+      const controller = new AbortController();
+
       const proxyResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
       });
       
       if (!proxyResponse.ok) {
@@ -60,6 +63,11 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
         let buffer = '';
 
         while (true) {
+            if (controller.signal.aborted) {
+              reader.cancel();
+              throw new Error('Request was aborted');
+            }
+            
             const { done, value } = await reader.read();
             if (done) {
                 break;
@@ -76,7 +84,7 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
                         const parsed = JSON.parse(line);
                         if (parsed.response) {
                             content += parsed.response;
-                            handler?.(content);
+                            handler?.(content, controller);
                         }
                     } catch (e) {
                         console.error("Failed to parse Ollama stream chunk:", line, e);
@@ -129,6 +137,11 @@ export async function generate(request: GenerateRequest): Promise<ApiResponse> {
       }
     } catch (proxyError) {
       console.error('请求失败:', proxyError);
+      if (retryCount > 0) {
+        console.log(`重试请求，剩余重试次数: ${retryCount}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return generate(request, retryCount - 1);
+      }
       throw proxyError;
     }
   } catch (error) {

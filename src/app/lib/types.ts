@@ -90,7 +90,7 @@ export interface GenerateRequest {
   messages?: unknown[];
   stream?: boolean;
   response_format?: unknown;
-  handler?: (chunk: string) => void;
+  handler?: (chunk: string, controller?: AbortController) => void;
   extra_body?: string;
   size?: string;
 }
