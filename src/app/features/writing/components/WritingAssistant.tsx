@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { generate, exportToMarkdown } from '@/app/lib/api';
 import { useApiSettings } from '@/app/components/ApiSettingsContext';
 import MarkdownEditor from './MarkdownEditor';
@@ -21,6 +21,7 @@ export default function WritingAssistant() {
   const [useCustomPrompt, setUseCustomPrompt] = useState<boolean>(false);
   const [topic, setTopic] = useState<string>('儿时赶海');
   const [keywords, setKeywords] = useState<string>('浙江海边、小时候、渔村、温暖、质朴');
+  const [platform, setPlatform] = useState<string>('微信公众号');
   const [wordCount, setWordCount] = useState<number>(800);
   const [articles, setArticles] = useState<string[]>([]);
 
@@ -44,40 +45,28 @@ export default function WritingAssistant() {
   };
 
   const [time, setTime] = useState<string>('');
-  const [lastOutput, setLastOutput] = useState<string>('');
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const generateOutput = async (messages: Message[]) => {
     setIsLoading(true);
     setError(null);
     setApiResponseDetails(null);
-    setTime('');
+    setTime(''); 
 
-    const userMessage = [
-      useCustomPrompt && prompt ? { role: 'system', content: prompt } : {},
-      articles.length ? { role: 'user', content: articles.join('') } : {}, 
-      output ? { role: 'user', content: output } : {},
-      topic && wordCount ? { role: 'user', content: `为我编写一篇${wordCount}字的文章，主题是${topic}，输出格式为markdown。关键词：${keywords}，不需要任何解释` } : {}
-    ];
-    const newMessages = userMessage.filter(msg => msg.content);
-    setMessages(newMessages);
-    setLastOutput(output);
-
-    try {      
+    try {
       const startTime = new Date();
       const translatedPrompt = await generate({
-          ...apiConfig,
-          model: 'gemini-2.5-pro',
-          messages: newMessages,
-          temperature: 0.7,
-          handler(message) {
-            setIsLoading(false);
-            setOutput(message);
+        ...apiConfig,
+        model: 'gemini-2.5-pro',
+        messages,
+        temperature: 0.7,
+        handler(message) {
+          setIsLoading(false);
+          setOutput(message);
 
-            const previewElm = document.getElementById('preview');
-            if (previewElm) {
-              previewElm.scrollTo({ top: previewElm.scrollHeight, behavior: 'smooth' });
-            }
+          const previewElm = document.getElementById('preview');
+          if (previewElm) {
+            previewElm.scrollTo({ top: previewElm.scrollHeight, behavior: 'smooth' });
           }
+        }
       });
 
       if (translatedPrompt.content) {
@@ -85,12 +74,33 @@ export default function WritingAssistant() {
         setTime(`耗时: ${(new Date().getTime() - startTime.getTime()) / 1000} s`);
       }
     } catch (error) {
-      setMessages(messages);
       setError((error as Error).message);
       setApiResponseDetails((error as Error).message);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const userMessage = [
+      useCustomPrompt && prompt ? { role: 'system', content: prompt } : {},
+      articles.length ? { role: 'user', content: articles.join('') } : {}, 
+      output ? { role: 'user', content: output } : {},
+      topic && wordCount ? { role: 'user', content: `主题：${topic}，字数：${wordCount}，发布平台：${platform}，关键词：${keywords}，输出格式为markdown，不需要任何解释` } : {}
+    ];
+    const newMessages = userMessage.filter(msg => msg.content);
+    setMessages(newMessages);
+
+    await generateOutput(newMessages);
+  };
+
+  const handleReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setOutput('');
+
+    await generateOutput(messages);
   };
 
   const handleExport = () => {
@@ -124,23 +134,37 @@ export default function WritingAssistant() {
     const payload = objectToQueryString({ model: 'searchgpt', token: process.env.NEXT_PUBLIC_POLLAI_KEY });
 
     setIsLoading(true);
-    const response = await fetch(`https://text.pollinations.ai/${topic}?${payload}`);
-    const data = await response.text();
-    setOutput(data);
-    setIsLoading(false);
+
+    try {
+      const response = await fetch(`https://text.pollinations.ai/${topic}?${payload}`);
+      const data = await response.text();
+      setOutput(data);
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const generateKeyWords = async () => {
     const inputText = output || topic || '';
-    const keywords = await generate({
-        ...apiConfig,
-        model: 'gemini-2.0-flash-exp',
-        messages: [{ role: 'user', content: `根据提供的主题或者内容给出文章3-5个关键词按、分割，不需要任何解释:\n${inputText}` }],
-        temperature: 0.7
-    });
+    setIsLoading(true);
 
-    if (keywords.content) {
-      setKeywords(keywords.content);
+    try {
+      const keywords = await generate({
+          ...apiConfig,
+          model: 'gemini-2.0-flash-exp',
+          messages: [{ role: 'user', content: `根据提供的主题或者内容给出文章3-5个关键词按、分割，不需要任何解释:\n${inputText}` }],
+          temperature: 0.7
+      });
+
+      if (keywords.content) {
+        setKeywords(keywords.content);
+      }
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -188,7 +212,7 @@ export default function WritingAssistant() {
                       <button 
                         type="button" 
                         onClick={searchTopic} 
-                        className="flex items-center gap-2 p-2 border border-gray-300 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                        className="flex items-center gap-2 p-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                         disabled={isLoading || !topic}
                       >
                         <FaSearch /> 搜索
@@ -211,7 +235,7 @@ export default function WritingAssistant() {
                       <button 
                         type="button" 
                         onClick={generateKeyWords} 
-                        className="flex items-center gap-2 p-2 border border-gray-300 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                        className="flex items-center gap-2 p-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                         disabled={isLoading || !keywords}
                       >
                         <FaMagic /> 自动
@@ -219,18 +243,32 @@ export default function WritingAssistant() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      字数
-                    </label>
-                    <input
-                      type="number"
-                      min="100"
-                      step="100"
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={wordCount}
-                      onChange={(e) => setWordCount(Number(e.target.value))}
-                    />
+                  <div className='grid grid-cols-2 gap-2'>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        发布平台
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={platform}
+                        onChange={(e) => setPlatform(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        字数
+                      </label>
+                      <input
+                        type="number"
+                        min="100"
+                        step="100"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={wordCount}
+                        onChange={(e) => setWordCount(Number(e.target.value))}
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -288,11 +326,7 @@ export default function WritingAssistant() {
                   {output.length > 0 && (
                     <button
                       type="button"
-                      onClick={(event) => {
-                        setMessages([]);
-                        setOutput(lastOutput);
-                        handleSubmit(event);
-                      }}
+                      onClick={handleReset}
                       className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-2 px-4 rounded-md font-medium transition duration-150 ease-in-out transform hover:scale-105 shadow-md"
                     >
                       重新生成

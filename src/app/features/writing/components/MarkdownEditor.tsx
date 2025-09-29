@@ -36,6 +36,11 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
     setIsEditing(!isEditing);
   };
 
+  const handleClear = () => {
+    setContent('');
+    onContentChange('');
+  };
+
   return (
     <div className="border border-gray-200 rounded-md overflow-hidden h-full text-sm">
       <div className="flex justify-between items-center bg-gray-50 p-2">
@@ -43,7 +48,7 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
         <button
           type="button"
           onClick={toggleEdit}
-          className="text-blue-600 hover:underline text-sm flex items-center"
+          className="text-blue-600 text-sm flex items-center"
         >
           {isEditing ? (
             <>
@@ -58,7 +63,9 @@ export default function MarkdownEditor({ initialContent, onContentChange }: Mark
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
               </svg>
-              编辑
+              <span className="hover:underline cursor-pointer">编辑</span>
+
+              <span className="ml-2 text-red-600 hover:underline cursor-pointer" onClick={handleClear}>清空</span>
             </>
           )}
         </button>
